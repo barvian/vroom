@@ -182,9 +182,7 @@ void apply_default_framing(VroomChart* chart) {
 // gesture continues from exactly what the user sees. No-op once manual.
 void ensure_manual_price_bounds(VroomChart* chart) {
     if (chart->price_bounds_manual) return;
-    const auto idx = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto idx = chart->visible_range();
     if (idx.end > idx.start) {
         chart->price_bounds = vroom::auto_price_bounds(
             chart->candles.data() + idx.start, idx.end - idx.start,
@@ -317,6 +315,15 @@ extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_edge_culling(VroomChart* chart, int32_t mode) {
+    if (!chart) return;
+    const auto culling = mode == 1 ? vroom::EdgeCulling::Overscan
+                                   : vroom::EdgeCulling::Strict;
+    if (chart->edge_culling == culling) return;
+    chart->edge_culling = culling;
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,
                                                  int32_t mode) {
     if (!chart) return;
@@ -380,9 +387,7 @@ extern "C" bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
                                                        double* out_low,
                                                        double* out_high) {
     if (!chart) return false;
-    const auto idx = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto idx = chart->visible_range();
     if (idx.end <= idx.start) return false;
     const auto env = vroom::price_bounds(chart->candles.data() + idx.start,
                                          idx.end - idx.start);
@@ -430,9 +435,7 @@ static void capture_morph(VroomChart* chart) {
     const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
     if (area_w <= 0.f || window_ms <= 0) return;
 
-    const auto idx = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto idx = chart->visible_range();
     const std::size_t n = idx.end - idx.start;
     if (n == 0) return;
     const ::VroomCandle* visible = chart->candles.data() + idx.start;
@@ -951,9 +954,7 @@ extern "C" void vroom_chart_set_crosshair_data(VroomChart* chart,
     if (window_ms <= 0) return;
     const auto lay = chart->layout();
     // Mirror coord_at's bounds so price -> y matches what's on screen.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -984,9 +985,7 @@ extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
     // Mirror draw_chart's visible-slice derivation so the queried candle is
     // exactly the one the crosshair snaps to on screen.
     const auto lay = chart->layout();
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
     if (n == 0 || window_ms <= 0) return false;
@@ -1007,9 +1006,7 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
     // Mirror draw_chart's visible-slice derivation so the queried slot is
     // exactly the one the crosshair snaps to on screen.
     const auto lay = chart->layout();
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
     if (n == 0 || window_ms <= 0) return false;
@@ -1073,9 +1070,7 @@ extern "C" void vroom_chart_set_crosshair_button_state(VroomChart* chart,
         // Same bounds as draw_chart, so the line neither jumps when the lock
         // takes hold nor when it releases.
         const auto lay = chart->layout();
-        const auto range = vroom::visible_indices(
-            chart->candles.data(), chart->candles.size(),
-            chart->visible_start_ms, chart->visible_end_ms);
+        const auto range = chart->visible_range();
         const auto bounds =
             chart->price_bounds_manual
                 ? chart->price_bounds
@@ -1102,9 +1097,7 @@ extern "C" bool vroom_chart_get_crosshair_button(VroomChart* chart,
         return false;
     }
     const auto lay = chart->layout();
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
     if (n == 0 || window_ms <= 0) return false;
@@ -1295,9 +1288,7 @@ extern "C" bool vroom_chart_hit_test_footprint(VroomChart* chart, float x_px,
     // Same bounds and pane geometry as draw_chart, so the badges hit where they
     // render.
     const auto lay = chart->layout();
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -1445,9 +1436,7 @@ extern "C" bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
     const auto lay = chart->layout();
     // Mirror draw_chart's bounds: the frozen manual scale, else the auto-fit
     // over the visible slice — so y_to_price matches what's on screen.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -1467,9 +1456,7 @@ extern "C" bool vroom_chart_project(VroomChart* chart, int64_t time_ms,
     if (window_ms <= 0) return false;
     const auto lay = chart->layout();
     // Same bounds as coord_at / draw_chart so the projection matches the render.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -1490,9 +1477,7 @@ extern "C" bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px,
     if (window_ms <= 0) return false;
     const auto lay = chart->layout();
     // Same bounds as coord_at / draw_chart so screen geometry matches the render.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -1514,9 +1499,7 @@ extern "C" bool vroom_chart_drawing_bounds(VroomChart* chart, int32_t index,
     if (window_ms <= 0) return false;
     const auto lay = chart->layout();
     // Same bounds as coord_at / draw_chart so the rectangle matches the render.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual
@@ -1540,9 +1523,7 @@ extern "C" bool vroom_chart_hit_test_price_line(VroomChart* chart, float x_px,
     const auto lay = chart->layout();
     // Same bounds and pane geometry as draw_chart, so the grab regions line up
     // with what's on screen.
-    const auto range = vroom::visible_indices(
-        chart->candles.data(), chart->candles.size(),
-        chart->visible_start_ms, chart->visible_end_ms);
+    const auto range = chart->visible_range();
     const size_t n = range.end - range.start;
     const auto bounds =
         chart->price_bounds_manual

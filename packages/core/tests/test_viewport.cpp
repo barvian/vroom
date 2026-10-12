@@ -445,6 +445,81 @@ TEST_CASE("visible_indices") {
     }
 }
 
+TEST_CASE("visible_indices edge culling") {
+    // Duration 100: candle i spans [i*100, i*100+100), center at i*100+50.
+    VroomCandle candles[5];
+    for (int i = 0; i < 5; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+    constexpr int64_t kDur = 100;
+    using vroom::EdgeCulling;
+
+    SUBCASE("strict drops a candle straddling the left edge") {
+        // [180,330]: candle 1 (100..200) still covers 180..200 but starts
+        // before the window, so strict keeps only 2,3.
+        IndexRange r = vroom::visible_indices(candles, 5, 180, 330, kDur,
+                                              EdgeCulling::Strict);
+        CHECK(r.start == 2);
+        CHECK(r.end == 4);
+    }
+
+    SUBCASE("strict ignores the duration") {
+        IndexRange a = vroom::visible_indices(candles, 5, 180, 330);
+        IndexRange b = vroom::visible_indices(candles, 5, 180, 330, kDur,
+                                              EdgeCulling::Strict);
+        CHECK(a.start == b.start);
+        CHECK(a.end == b.end);
+    }
+
+    SUBCASE("overscan keeps one candle past each edge") {
+        // Centers in [180,330]: 250 (2). Plus 1 (center 150, partly on screen
+        // on the left) and 3 (center 350, its body reaches back to ~316).
+        IndexRange r = vroom::visible_indices(candles, 5, 180, 330, kDur,
+                                              EdgeCulling::Overscan);
+        CHECK(r.start == 1);
+        CHECK(r.end == 4);
+    }
+
+    SUBCASE("overscan reaches a vertex beyond each edge for the line") {
+        // [120,380]: centers 150, 250, 350 (1..3) are inside, so the line also
+        // needs 0 (center 50) and 4 (center 450) to run off both edges.
+        IndexRange r = vroom::visible_indices(candles, 5, 120, 380, kDur,
+                                              EdgeCulling::Overscan);
+        CHECK(r.start == 0);
+        CHECK(r.end == 5);
+        // Strict stops at the first and last period start inside: 2,3.
+        IndexRange s = vroom::visible_indices(candles, 5, 120, 380, kDur,
+                                              EdgeCulling::Strict);
+        CHECK(s.start == 2);
+        CHECK(s.end == 4);
+    }
+
+    SUBCASE("a center exactly on an edge counts as inside") {
+        // [150,350]: centers 150 and 350 sit on the edges -> 1..3 inside, plus
+        // 0 and 4 as the neighbours.
+        IndexRange r = vroom::visible_indices(candles, 5, 150, 350, kDur,
+                                              EdgeCulling::Overscan);
+        CHECK(r.start == 0);
+        CHECK(r.end == 5);
+    }
+
+    SUBCASE("overscan clamps to the data") {
+        IndexRange r = vroom::visible_indices(candles, 5, -100, 1000, kDur,
+                                              EdgeCulling::Overscan);
+        CHECK(r.start == 0);
+        CHECK(r.end == 5);
+    }
+
+    SUBCASE("overscan keeps the unframed and empty sentinels") {
+        IndexRange all = vroom::visible_indices(candles, 5, 0, 0, kDur,
+                                                EdgeCulling::Overscan);
+        CHECK(all.start == 0);
+        CHECK(all.end == 5);
+        IndexRange none = vroom::visible_indices(candles, 0, 100, 300, kDur,
+                                                 EdgeCulling::Overscan);
+        CHECK(none.start == 0);
+        CHECK(none.end == 0);
+    }
+}
+
 TEST_CASE("price_bounds") {
     SUBCASE("empty defaults to {0,1}") {
         PriceBounds b = vroom::price_bounds(nullptr, 0);

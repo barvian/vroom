@@ -26,6 +26,7 @@ export type {
   FairValueGapsConfig,
   VolumeConfig,
   ChartType,
+  EdgeCulling,
   PriceScaleMode,
   TransitionEasing,
   IntervalTransition,

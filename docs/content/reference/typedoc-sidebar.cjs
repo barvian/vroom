@@ -63,6 +63,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/EdgeCulling",
+          label: "EdgeCulling"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/FairValueGapsConfig",
           label: "FairValueGapsConfig"
         },

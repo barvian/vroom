@@ -554,6 +554,12 @@ export interface VroomChartHandle {
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
   /**
+   * Edge culling: 0 = strict (default), only candles whose period starts in the
+   * window; 1 = overscan, candles, volume and the line drawn until fully out of
+   * view, clipped to the plot.
+   */
+  setEdgeCulling(mode: number): void;
+  /**
    * Price-axis scale: 0 = linear (default), 1 = logarithmic. Snaps; a manual
    * price range is kept unless it reaches zero or below on entering log.
    */

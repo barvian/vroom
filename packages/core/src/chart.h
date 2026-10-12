@@ -92,6 +92,10 @@ struct VroomChart {
     // Render mode: 0 = candlesticks (default), 1 = line chart (close polyline).
     int chart_type = 0;
 
+    // Which candles at the window edges make the visible slice (see
+    // visible_range).
+    vroom::EdgeCulling edge_culling = vroom::EdgeCulling::Strict;
+
     // Candle↔line morph blend, driven per-frame by the JS animation loop.
     // `morph_collapse` folds candles toward their close; `morph_fade` crossfades
     // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
@@ -509,6 +513,11 @@ struct VroomChart {
     void capture_morph_lines(const vroom::Layout& lay,
                              const vroom::PriceBounds& bounds,
                              vroom::IndexRange range, int64_t window_ms);
+
+    // The visible slice: the candles every layer draws and every hit test,
+    // price fit and morph capture reads, so all of them agree on what is on
+    // screen. Follows `edge_culling`.
+    vroom::IndexRange visible_range() const;
 
     // Source indices whose *displaced* plot time lands in the visible window,
     // for an Ichimoku span drawn at `time_ms + shift_ms`. A bar of padding

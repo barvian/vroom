@@ -325,6 +325,12 @@ void VroomChart::ensure_footprint_buckets() {
     footprint_buckets_dirty = false;
 }
 
+vroom::IndexRange VroomChart::visible_range() const {
+    return vroom::visible_indices(candles.data(), candles.size(),
+                                  visible_start_ms, visible_end_ms,
+                                  candle_duration_ms, edge_culling);
+}
+
 vroom::IndexRange VroomChart::ichimoku_source_range(int64_t shift_ms) const {
     return vroom::ichimoku::shifted_source_range(
         candles.data(), candles.size(), visible_start_ms - candle_duration_ms,
@@ -653,9 +659,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (candles.empty()) return;
 
     // 2. Visible slice + bounds + window_ms + geometry
-    const auto range = vroom::visible_indices(
-        candles.data(), candles.size(),
-        visible_start_ms, visible_end_ms);
+    const auto range = visible_range();
     const size_t n = range.end - range.start;
     if (n == 0) return;
     const ::VroomCandle* visible = candles.data() + range.start;
@@ -1086,8 +1090,7 @@ void VroomChart::set_loading(bool on, bool animate) {
 VroomChart::LoadingTarget VroomChart::loading_target() const {
     LoadingTarget t{};
     if (candles.empty()) return t;
-    const auto range = vroom::visible_indices(candles.data(), candles.size(),
-                                              visible_start_ms, visible_end_ms);
+    const auto range = visible_range();
     const std::size_t n = range.end - range.start;
     if (n == 0) return t;
     t.visible = candles.data() + range.start;

@@ -104,6 +104,7 @@ export function VroomChart(props: VroomChartProps) {
     visibleRange,
     defaultCandleWidth,
     chartType,
+    edgeCulling,
     priceScaleMode,
     transitionMs,
     transitionEasing,
@@ -496,6 +497,13 @@ export function VroomChart(props: VroomChartProps) {
     // [handle, applyFrame], both already deps here — so it adds no new restarts
     // of this clock.
   }, [handle, chartType, transitionMs, reduceMotion, applyFrame, maybeStartAnim]);
+
+  useEffect(() => {
+    if (!handle) return;
+    handle.setEdgeCulling(edgeCulling === 'overscan' ? 1 : 0);
+    const p = handle.render();
+    if (p) applyFrame(p);
+  }, [handle, edgeCulling, applyFrame]);
 
   useEffect(() => {
     if (!handle) return;

@@ -29,8 +29,6 @@ export interface ChartHandle {
   setDefaultCandleWidth(px: number): void;
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
-  /** Edge culling: 0 = strict (default), 1 = overscan (draw until fully out of view). */
-  setEdgeCulling(mode: number): void;
   /** Price-axis scale: 0 = linear (default), 1 = logarithmic. */
   setPriceScaleMode(mode: number): void;
   /** Candle↔line morph blend: collapse folds candles to close, fade crossfades. */

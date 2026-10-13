@@ -445,78 +445,100 @@ TEST_CASE("visible_indices") {
     }
 }
 
-TEST_CASE("visible_indices edge culling") {
+TEST_CASE("draw_indices and fit_indices") {
     // Duration 100: candle i spans [i*100, i*100+100), center at i*100+50.
     VroomCandle candles[5];
     for (int i = 0; i < 5; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
     constexpr int64_t kDur = 100;
-    using vroom::EdgeCulling;
+    const auto draw = [&](int64_t s, int64_t e) {
+        return vroom::draw_indices(candles, 5, s, e, kDur);
+    };
+    const auto fit = [&](int64_t s, int64_t e) {
+        return vroom::fit_indices(candles, 5, s, e, kDur);
+    };
 
-    SUBCASE("strict drops a candle straddling the left edge") {
-        // [180,330]: candle 1 (100..200) still covers 180..200 but starts
-        // before the window, so strict keeps only 2,3.
-        IndexRange r = vroom::visible_indices(candles, 5, 180, 330, kDur,
-                                              EdgeCulling::Strict);
-        CHECK(r.start == 2);
-        CHECK(r.end == 4);
+    SUBCASE("left edge: draw keeps the straddling candle, fit drops it") {
+        // [180,330]: only center 250 (2) is inside. Candle 1 (center 150) still
+        // covers 180..200 and candle 3 (center 350) reaches back past 330.
+        IndexRange d = draw(180, 330);
+        CHECK(d.start == 1);
+        CHECK(d.end == 4);
+        IndexRange f = fit(180, 330);
+        CHECK(f.start == 2);
+        CHECK(f.end == 3);
     }
 
-    SUBCASE("strict ignores the duration") {
-        IndexRange a = vroom::visible_indices(candles, 5, 180, 330);
-        IndexRange b = vroom::visible_indices(candles, 5, 180, 330, kDur,
-                                              EdgeCulling::Strict);
-        CHECK(a.start == b.start);
-        CHECK(a.end == b.end);
-    }
-
-    SUBCASE("overscan keeps one candle past each edge") {
-        // Centers in [180,330]: 250 (2). Plus 1 (center 150, partly on screen
-        // on the left) and 3 (center 350, its body reaches back to ~316).
-        IndexRange r = vroom::visible_indices(candles, 5, 180, 330, kDur,
-                                              EdgeCulling::Overscan);
-        CHECK(r.start == 1);
-        CHECK(r.end == 4);
-    }
-
-    SUBCASE("overscan reaches a vertex beyond each edge for the line") {
+    SUBCASE("draw reaches a vertex past each edge for the line") {
         // [120,380]: centers 150, 250, 350 (1..3) are inside, so the line also
         // needs 0 (center 50) and 4 (center 450) to run off both edges.
-        IndexRange r = vroom::visible_indices(candles, 5, 120, 380, kDur,
-                                              EdgeCulling::Overscan);
-        CHECK(r.start == 0);
-        CHECK(r.end == 5);
-        // Strict stops at the first and last period start inside: 2,3.
-        IndexRange s = vroom::visible_indices(candles, 5, 120, 380, kDur,
-                                              EdgeCulling::Strict);
-        CHECK(s.start == 2);
-        CHECK(s.end == 4);
+        IndexRange d = draw(120, 380);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
+        IndexRange f = fit(120, 380);
+        CHECK(f.start == 1);
+        CHECK(f.end == 4);
     }
 
     SUBCASE("a center exactly on an edge counts as inside") {
-        // [150,350]: centers 150 and 350 sit on the edges -> 1..3 inside, plus
-        // 0 and 4 as the neighbours.
-        IndexRange r = vroom::visible_indices(candles, 5, 150, 350, kDur,
-                                              EdgeCulling::Overscan);
-        CHECK(r.start == 0);
-        CHECK(r.end == 5);
+        IndexRange f = fit(150, 350);
+        CHECK(f.start == 1);
+        CHECK(f.end == 4);
+        IndexRange d = draw(150, 350);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
     }
 
-    SUBCASE("overscan clamps to the data") {
-        IndexRange r = vroom::visible_indices(candles, 5, -100, 1000, kDur,
-                                              EdgeCulling::Overscan);
-        CHECK(r.start == 0);
-        CHECK(r.end == 5);
+    SUBCASE("odd durations place the center exactly") {
+        // Duration 101: candle 1's center is 150.5, just past an end of 150.
+        IndexRange f = vroom::fit_indices(candles, 5, 1, 150, 101);
+        CHECK(f.start == 0);
+        CHECK(f.end == 1);
     }
 
-    SUBCASE("overscan keeps the unframed and empty sentinels") {
-        IndexRange all = vroom::visible_indices(candles, 5, 0, 0, kDur,
-                                                EdgeCulling::Overscan);
+    SUBCASE("both clamp to the data") {
+        IndexRange d = draw(-100, 1000);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
+        IndexRange f = fit(-100, 1000);
+        CHECK(f.start == 0);
+        CHECK(f.end == 5);
+    }
+
+    SUBCASE("fit falls back to draw when no center is in view") {
+        // [210,240] sits inside candle 2's slot, left of its center.
+        IndexRange f = fit(210, 240);
+        CHECK(f.start == 1);
+        CHECK(f.end == 3);
+        IndexRange d = draw(210, 240);
+        CHECK(d.start == f.start);
+        CHECK(d.end == f.end);
+    }
+
+    SUBCASE("unframed and empty sentinels") {
+        IndexRange all = draw(0, 0);
         CHECK(all.start == 0);
         CHECK(all.end == 5);
-        IndexRange none = vroom::visible_indices(candles, 0, 100, 300, kDur,
-                                                 EdgeCulling::Overscan);
+        all = fit(0, 0);
+        CHECK(all.start == 0);
+        CHECK(all.end == 5);
+        IndexRange none = vroom::draw_indices(candles, 0, 100, 300, kDur);
         CHECK(none.start == 0);
         CHECK(none.end == 0);
+        none = vroom::fit_indices(candles, 0, 100, 300, kDur);
+        CHECK(none.start == 0);
+        CHECK(none.end == 0);
+    }
+
+    SUBCASE("auto-fit ignores a fully off-screen neighbour") {
+        // Candle 1 spikes to 100 but its center (150) is left of the window;
+        // draw_indices still includes it so the clip can trim it.
+        candles[1] = ohlc(100, 1.0, 100.0);
+        IndexRange d = draw(180, 330);
+        REQUIRE(d.start == 1);
+        IndexRange f = fit(180, 330);
+        PriceBounds b = vroom::auto_price_bounds(candles + f.start,
+                                                 f.end - f.start, false);
+        CHECK(b.max < 3.0);
     }
 }
 

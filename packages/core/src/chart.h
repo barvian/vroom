@@ -92,10 +92,6 @@ struct VroomChart {
     // Render mode: 0 = candlesticks (default), 1 = line chart (close polyline).
     int chart_type = 0;
 
-    // Which candles at the window edges make the visible slice (see
-    // visible_range).
-    vroom::EdgeCulling edge_culling = vroom::EdgeCulling::Strict;
-
     // Candle↔line morph blend, driven per-frame by the JS animation loop.
     // `morph_collapse` folds candles toward their close; `morph_fade` crossfades
     // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
@@ -514,10 +510,23 @@ struct VroomChart {
                              const vroom::PriceBounds& bounds,
                              vroom::IndexRange range, int64_t window_ms);
 
-    // The visible slice: the candles every layer draws and every hit test,
-    // price fit and morph capture reads, so all of them agree on what is on
-    // screen. Follows `edge_culling`.
-    vroom::IndexRange visible_range() const;
+    // The candles every layer draws, morph capture included: centered in the
+    // window plus one past each edge (vroom::draw_indices).
+    vroom::IndexRange draw_range() const;
+
+    // The candles whose center is in the window (vroom::fit_indices): what the
+    // price auto-fit and the crosshair read, so a candle the clip mostly hides
+    // never moves the scale or catches the pointer.
+    vroom::IndexRange fit_range() const;
+
+    // The price scale on screen: the manual bounds, else the auto-fit over
+    // fit_range(). Every hit test and projection reads this so they line up
+    // with draw_chart.
+    vroom::PriceBounds screen_price_bounds() const;
+
+    // The crosshair's slot, snapped over fit_range() so it never lands on a
+    // candle whose center is off screen. `index` is into `candles`.
+    vroom::SnapResult crosshair_snap(const vroom::Layout& lay) const;
 
     // Source indices whose *displaced* plot time lands in the visible window,
     // for an Ichimoku span drawn at `time_ms + shift_ms`. A bar of padding

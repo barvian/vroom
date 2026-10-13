@@ -548,15 +548,6 @@ void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
 // crosshair, drawings) are unaffected.
 void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 
-// Which candles are drawn at the left and right edges of the window. 0 = strict
-// (default): only candles whose period starts inside the window, so one sliding
-// off the left edge disappears while most of it is still on screen. 1 =
-// overscan: candles whose center is inside the window plus one past each edge,
-// trimmed by the plot clip, so candles, volume bars and the line run all the
-// way to both edges. The extra candles also feed the price auto-fit, hit tests
-// and the crosshair, which snaps to a partly visible edge candle.
-void vroom_chart_set_edge_culling(VroomChart* chart, int32_t mode);
-
 // Price-axis scale: 0 = linear (default), 1 = logarithmic (equal price ratios
 // take equal vertical distance). Snaps. A manual price range is kept as-is,
 // unless it reaches zero or below on entering log, in which case the chart

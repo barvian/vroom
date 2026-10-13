@@ -24,7 +24,6 @@ export type {
   ATRConfig,
   ATRSmoothing,
   ChartType,
-  EdgeCulling,
   PriceScaleMode,
   TransitionEasing,
   IntervalTransition,

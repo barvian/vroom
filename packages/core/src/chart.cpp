@@ -325,10 +325,41 @@ void VroomChart::ensure_footprint_buckets() {
     footprint_buckets_dirty = false;
 }
 
-vroom::IndexRange VroomChart::visible_range() const {
-    return vroom::visible_indices(candles.data(), candles.size(),
-                                  visible_start_ms, visible_end_ms,
-                                  candle_duration_ms, edge_culling);
+vroom::IndexRange VroomChart::draw_range() const {
+    return vroom::draw_indices(candles.data(), candles.size(),
+                               visible_start_ms, visible_end_ms,
+                               candle_duration_ms);
+}
+
+vroom::IndexRange VroomChart::fit_range() const {
+    return vroom::fit_indices(candles.data(), candles.size(),
+                              visible_start_ms, visible_end_ms,
+                              candle_duration_ms);
+}
+
+vroom::PriceBounds VroomChart::screen_price_bounds() const {
+    if (price_bounds_manual) return price_bounds;
+    const auto fit = fit_range();
+    return vroom::auto_price_bounds(candles.data() + fit.start,
+                                    fit.end - fit.start, price_bounds.log);
+}
+
+vroom::SnapResult VroomChart::crosshair_snap(const vroom::Layout& lay) const {
+    const auto fit = fit_range();
+    const std::size_t n = fit.end - fit.start;
+    if (n == 0) return {visible_start_ms, false, 0};
+    vroom::SnapResult snap = vroom::snap_to_slot(
+        lay, candles.data() + fit.start, n, candle_duration_ms,
+        visible_start_ms, visible_end_ms - visible_start_ms, crosshair_x_px);
+    if (snap.has_candle) {
+        snap.index += fit.start;
+    } else if (fit.end < candles.size()) {
+        // Past the last centered candle but not the end of the series: the
+        // "future" slot snap_to_slot found is a real candle whose center is
+        // off screen, so stay on the last one in view.
+        return {candles[fit.end - 1].time_ms, true, fit.end - 1};
+    }
+    return snap;
 }
 
 vroom::IndexRange VroomChart::ichimoku_source_range(int64_t shift_ms) const {
@@ -659,14 +690,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (candles.empty()) return;
 
     // 2. Visible slice + bounds + window_ms + geometry
-    const auto range = visible_range();
+    const auto range = draw_range();
     const size_t n = range.end - range.start;
     if (n == 0) return;
     const ::VroomCandle* visible = candles.data() + range.start;
 
-    const auto bounds = price_bounds_manual
-        ? price_bounds
-        : vroom::auto_price_bounds(visible, n, price_bounds.log);
+    const auto bounds = screen_price_bounds();
     const int64_t window_ms = visible_end_ms - visible_start_ms;
 
     const float candle_area_h = vroom::price_pane_bottom(lay);
@@ -1010,11 +1039,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                 ? vroom::IndicatorReadout{}
                 : indicator_readout(lay, range.start, n, crosshair_y_px);
         // Snap once: the slot gives both the vertical line's x (its center) and
-        // the time shown in the date badge. (snap_x_to_candle does exactly this
-        // internally, so the line position is unchanged.)
-        const vroom::SnapResult snap = vroom::snap_to_slot(
-            lay, visible, n, candle_duration_ms, visible_start_ms, window_ms,
-            crosshair_x_px);
+        // the time shown in the date badge.
+        const vroom::SnapResult snap = crosshair_snap(lay);
         const float snap_x = vroom::candle_center_x(
             lay, snap.time_ms, candle_duration_ms, visible_start_ms, window_ms);
         vroom::crosshair::draw(canvas, *this, lay, bounds, candle_right,
@@ -1090,14 +1116,12 @@ void VroomChart::set_loading(bool on, bool animate) {
 VroomChart::LoadingTarget VroomChart::loading_target() const {
     LoadingTarget t{};
     if (candles.empty()) return t;
-    const auto range = visible_range();
+    const auto range = draw_range();
     const std::size_t n = range.end - range.start;
     if (n == 0) return t;
     t.visible = candles.data() + range.start;
     t.n = n;
-    t.bounds = price_bounds_manual
-        ? price_bounds
-        : vroom::auto_price_bounds(t.visible, n, price_bounds.log);
+    t.bounds = screen_price_bounds();
     return t;
 }
 

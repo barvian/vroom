@@ -1,7 +1,7 @@
 ---
-'react-native-vroom-chart': minor
-'@vroomchart/react': minor
-'@vroomchart/core-wasm': minor
+'react-native-vroom-chart': patch
+'@vroomchart/react': patch
+'@vroomchart/core-wasm': patch
 ---
 
-Add an `edgeCulling` prop. `'strict'` (default) keeps today's behavior. `'overscan'` keeps drawing candles, volume bars and line segments at the left and right edges until they are fully out of view, clipped to the plot, instead of dropping a candle as soon as its period starts outside the window.
+Fix candles, volume bars and the line disappearing at the plot edges while still on screen. Every layer now draws each candle whose center is in view plus one past each edge, clipped to the plot, so they run all the way to both edges. The price auto-fit and the crosshair only read candles whose center is in view, so a candle the clip mostly hides never stretches the scale or catches the pointer.

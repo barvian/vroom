@@ -469,7 +469,6 @@ export function useChartCore(
     visibleRange,
     defaultCandleWidth,
     chartType,
-    edgeCulling,
     priceScaleMode,
     transitionMs,
     transitionEasing,
@@ -1113,14 +1112,6 @@ export function useChartCore(
       }
     };
   }, [ready, chartType, transitionMs, scheduleRender]);
-
-  useEffect(() => {
-    if (!ready) return;
-    const h = handleRef.current;
-    if (!h) return;
-    h.setEdgeCulling(edgeCulling === 'overscan' ? 1 : 0);
-    scheduleRender();
-  }, [ready, edgeCulling, scheduleRender]);
 
   useEffect(() => {
     if (!ready) return;

@@ -190,30 +190,35 @@ inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
     }
 }
 
-// Which candles visible_indices keeps at the edges of the window. C facade
-// `vroom_chart_set_edge_culling` mode: 0 = Strict, 1 = Overscan.
-enum class EdgeCulling : int32_t {
-    // Only candles whose period starts inside the window. A candle straddling
-    // the left edge is dropped while most of its body is still on screen, and
-    // the line stops short of both edges.
-    Strict = 0,
-    // Candles whose center is inside the window, plus one neighbour past each
-    // edge. That neighbour is the candle that can still be partly on screen and
-    // the vertex the line runs off the edge to; the plot clip trims both.
-    Overscan = 1,
-};
-
-// Returns the indices of the candles to draw for the window [start_ms, end_ms]
-// (see EdgeCulling). `candle_duration_ms` places each candle's center and is
-// only read by Overscan. When both bounds are 0, returns the full range (Phase
-// 1 default-everything behavior). Candles must be sorted ascending by time_ms
-// (invariant of the public API).
+// Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
+// When both are 0, returns the full range (Phase 1 default-everything behavior).
+// Candles must be sorted ascending by time_ms (invariant of the public API).
 IndexRange visible_indices(const ::VroomCandle* candles,
                            size_t count,
                            int64_t start_ms,
-                           int64_t end_ms,
-                           int64_t candle_duration_ms = 0,
-                           EdgeCulling culling = EdgeCulling::Strict);
+                           int64_t end_ms);
+
+// The candles to draw for the window [start_ms, end_ms]: every candle whose
+// center (time_ms + candle_duration_ms / 2) is inside it, plus one neighbour
+// past each edge. That neighbour is the candle that can still be partly on
+// screen and the vertex the line runs off the edge to; the plot clip trims
+// both. Same sentinels and sort invariant as visible_indices.
+IndexRange draw_indices(const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t start_ms,
+                        int64_t end_ms,
+                        int64_t candle_duration_ms);
+
+// The candles the price auto-fit and the crosshair read: those whose center is
+// inside [start_ms, end_ms], i.e. whose wick is on screen, so a neighbour that
+// draw_indices adds never stretches the scale or catches the crosshair. Falls
+// back to draw_indices when no center is in view (zoomed inside one slot, or a
+// window over a gap in the data) so there is still something to fit.
+IndexRange fit_indices(const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t start_ms,
+                       int64_t end_ms,
+                       int64_t candle_duration_ms);
 
 // Width of one candle body in pixels, computed from the time slot a single
 // candle occupies (candle_duration_ms / window_ms × candle area).

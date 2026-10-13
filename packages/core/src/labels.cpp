@@ -380,7 +380,7 @@ bool label_scale(const VroomChart& chart, vroom::PriceBounds* out) {
         return out->max > out->min;
     }
     if (chart.candles.empty()) return false;
-    const auto idx = chart.visible_range();
+    const auto idx = chart.fit_range();
     if (idx.end <= idx.start) return false;
     *out = vroom::auto_price_bounds(
         chart.candles.data() + idx.start, idx.end - idx.start,

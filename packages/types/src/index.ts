@@ -242,19 +242,6 @@ export type ChartType = 'candles' | 'line';
 export type PriceScaleMode = 'linear' | 'log';
 
 /**
- * Which candles are drawn at the left and right edges of the plot.
- *   'strict'   — default: only candles whose period starts inside the visible
- *                window. A candle panning off the left edge disappears while
- *                most of its body is still on screen, and the line stops short
- *                of both edges.
- *   'overscan' — every candle whose center is in view, plus one more past each
- *                edge, trimmed by the plot area. Candles, volume bars and the
- *                line run all the way to both edges until they are fully out of
- *                view.
- */
-export type EdgeCulling = 'strict' | 'overscan';
-
-/**
  * Easing curve for animated transitions (candle↔line and interval switches).
  * Defaults to `'ease-in-out'`.
  */
@@ -1343,15 +1330,6 @@ export type VroomChartCoreProps = {
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
    */
   chartType?: ChartType;
-  /**
-   * Which candles are drawn at the plot edges. `'strict'` (default) culls a
-   * candle once its period starts outside the window, so one panning off the
-   * left edge vanishes while still mostly on screen. `'overscan'` keeps drawing
-   * candles, volume bars and line segments until they are fully out of view,
-   * clipped to the plot. The partly visible candles also count toward the price
-   * auto-fit and the crosshair, which can snap to them.
-   */
-  edgeCulling?: EdgeCulling;
   /**
    * Price-axis scale. `'linear'` (default) or `'log'`. Controlled by the host
    * app — the chart never switches it on its own. Every price-pane layer

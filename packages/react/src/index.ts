@@ -54,7 +54,6 @@ export type {
   PlotRect,
   ChartMode,
   ChartType,
-  EdgeCulling,
   PriceScaleMode,
   TransitionEasing,
   IntervalTransition,

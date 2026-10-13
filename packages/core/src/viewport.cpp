@@ -190,32 +190,9 @@ float snap_x_to_candle(const Layout& layout,
 IndexRange visible_indices(const ::VroomCandle* candles,
                            size_t count,
                            int64_t start_ms,
-                           int64_t end_ms,
-                           int64_t candle_duration_ms,
-                           EdgeCulling culling) {
+                           int64_t end_ms) {
     if (count == 0) return {0, 0};
     if (start_ms == 0 && end_ms == 0) return {0, count};
-
-    if (culling == EdgeCulling::Overscan) {
-        // Centers compared at twice their value so an odd duration stays exact.
-        const int64_t dur = std::max<int64_t>(candle_duration_ms, 0);
-        auto* first = std::lower_bound(
-            candles, candles + count, 2 * start_ms,
-            [dur](const ::VroomCandle& c, int64_t t) {
-                return 2 * c.time_ms + dur < t;
-            });
-        auto* last = std::upper_bound(
-            candles, candles + count, 2 * end_ms,
-            [dur](int64_t t, const ::VroomCandle& c) {
-                return t < 2 * c.time_ms + dur;
-            });
-        if (first > candles) --first;
-        if (last < candles + count) ++last;
-        return {
-            static_cast<size_t>(first - candles),
-            static_cast<size_t>(last - candles),
-        };
-    }
 
     // first index with time_ms >= start_ms
     auto* first = std::lower_bound(
@@ -229,6 +206,60 @@ IndexRange visible_indices(const ::VroomCandle* candles,
         static_cast<size_t>(first - candles),
         static_cast<size_t>(last - candles),
     };
+}
+
+namespace {
+
+IndexRange centered_indices(const ::VroomCandle* candles,
+                            size_t count,
+                            int64_t start_ms,
+                            int64_t end_ms,
+                            int64_t candle_duration_ms) {
+    // Centers compared at twice their value so an odd duration stays exact.
+    const int64_t dur = std::max<int64_t>(candle_duration_ms, 0);
+    auto* first = std::lower_bound(
+        candles, candles + count, 2 * start_ms,
+        [dur](const ::VroomCandle& c, int64_t t) {
+            return 2 * c.time_ms + dur < t;
+        });
+    auto* last = std::upper_bound(
+        candles, candles + count, 2 * end_ms,
+        [dur](int64_t t, const ::VroomCandle& c) {
+            return t < 2 * c.time_ms + dur;
+        });
+    return {
+        static_cast<size_t>(first - candles),
+        static_cast<size_t>(last - candles),
+    };
+}
+
+}  // namespace
+
+IndexRange draw_indices(const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t start_ms,
+                        int64_t end_ms,
+                        int64_t candle_duration_ms) {
+    if (count == 0) return {0, 0};
+    if (start_ms == 0 && end_ms == 0) return {0, count};
+    IndexRange r =
+        centered_indices(candles, count, start_ms, end_ms, candle_duration_ms);
+    if (r.start > 0) --r.start;
+    if (r.end < count) ++r.end;
+    return r;
+}
+
+IndexRange fit_indices(const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t start_ms,
+                       int64_t end_ms,
+                       int64_t candle_duration_ms) {
+    if (count == 0) return {0, 0};
+    if (start_ms == 0 && end_ms == 0) return {0, count};
+    const IndexRange r =
+        centered_indices(candles, count, start_ms, end_ms, candle_duration_ms);
+    if (r.end > r.start) return r;
+    return draw_indices(candles, count, start_ms, end_ms, candle_duration_ms);
 }
 
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {

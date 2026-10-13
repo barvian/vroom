@@ -298,6 +298,19 @@ SnapResult snap_to_slot(const Layout& layout,
                         int64_t window_ms,
                         float x_px);
 
+// snap_to_slot over the fit slice [fit.start, fit.end) of the full series,
+// with the index into the full series. Past the last candle in the slice, the
+// slot holding the next candle (centered just off the right edge) stays on the
+// last one in view; any other slot past it, like one over a gap, is empty.
+SnapResult snap_to_fit_slot(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            IndexRange fit,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px);
+
 // On-screen x of the slot whose center is nearest pixel x_px, searching
 // [candles, candles+count) and the future grid past the last candle. Returns
 // x_px unchanged when there are no candles or the window is degenerate. Used to

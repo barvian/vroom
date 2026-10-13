@@ -965,19 +965,12 @@ extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
     if (!chart || !out || !chart->crosshair_active || chart->candles.empty()) {
         return false;
     }
-    // Mirror draw_chart's visible-slice derivation so the queried candle is
-    // exactly the one the crosshair snaps to on screen.
-    const auto lay = chart->layout();
-    const auto range = chart->fit_range();
-    const size_t n = range.end - range.start;
-    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
-    if (n == 0 || window_ms <= 0) return false;
-
-    const ::VroomCandle* visible = chart->candles.data() + range.start;
-    const size_t idx = vroom::snap_index_to_candle(
-        lay, visible, n, chart->candle_duration_ms,
-        chart->visible_start_ms, window_ms, chart->crosshair_x_px);
-    *out = visible[idx];
+    // Same snap as draw_chart and vroom_chart_get_crosshair_info, so an empty
+    // slot reads as no candle here too.
+    if (chart->visible_end_ms <= chart->visible_start_ms) return false;
+    const vroom::SnapResult snap = chart->crosshair_snap(chart->layout());
+    if (!snap.has_candle) return false;
+    *out = chart->candles[snap.index];
     return true;
 }
 

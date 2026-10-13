@@ -249,6 +249,31 @@ IndexRange draw_indices(const ::VroomCandle* candles,
     return r;
 }
 
+SnapResult snap_to_fit_slot(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            IndexRange fit,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px) {
+    const size_t n = fit.end - fit.start;
+    if (n == 0) return {visible_start_ms, false, 0};
+    SnapResult snap =
+        snap_to_slot(layout, candles + fit.start, n, candle_duration_ms,
+                     visible_start_ms, window_ms, x_px);
+    if (snap.has_candle) {
+        snap.index += fit.start;
+    } else if (fit.end < count) {
+        const int64_t next = candles[fit.end].time_ms;
+        const int64_t half = candle_duration_ms / 2;
+        if (snap.time_ms >= next - half && snap.time_ms <= next + half) {
+            return {candles[fit.end - 1].time_ms, true, fit.end - 1};
+        }
+    }
+    return snap;
+}
+
 IndexRange fit_indices(const ::VroomCandle* candles,
                        size_t count,
                        int64_t start_ms,

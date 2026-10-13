@@ -345,21 +345,9 @@ vroom::PriceBounds VroomChart::screen_price_bounds() const {
 }
 
 vroom::SnapResult VroomChart::crosshair_snap(const vroom::Layout& lay) const {
-    const auto fit = fit_range();
-    const std::size_t n = fit.end - fit.start;
-    if (n == 0) return {visible_start_ms, false, 0};
-    vroom::SnapResult snap = vroom::snap_to_slot(
-        lay, candles.data() + fit.start, n, candle_duration_ms,
+    return vroom::snap_to_fit_slot(
+        lay, candles.data(), candles.size(), fit_range(), candle_duration_ms,
         visible_start_ms, visible_end_ms - visible_start_ms, crosshair_x_px);
-    if (snap.has_candle) {
-        snap.index += fit.start;
-    } else if (fit.end < candles.size()) {
-        // Past the last centered candle but not the end of the series: the
-        // "future" slot snap_to_slot found is a real candle whose center is
-        // off screen, so stay on the last one in view.
-        return {candles[fit.end - 1].time_ms, true, fit.end - 1};
-    }
-    return snap;
 }
 
 vroom::IndexRange VroomChart::ichimoku_source_range(int64_t shift_ms) const {

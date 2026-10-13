@@ -180,7 +180,8 @@ export interface ChartHandle {
   clearCrosshair(): ChartFrame | null;
   /**
    * OHLCV of the candle the crosshair currently snaps to, or null when the
-   * crosshair is inactive / there are no visible candles. Cheap to poll at
+   * crosshair is inactive / there are no visible candles / it sits on an empty
+   * slot (ahead of the most recent candle or over a gap). Cheap to poll at
    * gesture rate (no rendering). Call after setCrosshair to read the candle
    * under the new position.
    */

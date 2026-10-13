@@ -706,7 +706,10 @@ export interface VroomChartHandle {
   setCrosshairData(timeMs: number, price: number): void;
   /** Hide the crosshair. */
   clearCrosshair(): void;
-  /** OHLCV of the candle the crosshair snaps to, or null when inactive. */
+  /**
+   * OHLCV of the candle the crosshair snaps to, or null when inactive or on an
+   * empty slot (ahead of the most recent candle or over a gap).
+   */
   getCrosshairCandle(): CrosshairCandle | null;
   /**
    * The slot the crosshair snaps to (real candle or future candle-aligned

@@ -754,8 +754,10 @@ bool vroom_chart_hit_test_crosshair_button(VroomChart* chart, float x_px,
 
 // Fills *out with the OHLCV of the candle the crosshair currently snaps to and
 // returns true. Returns false (leaving *out untouched) when the crosshair is
-// inactive or there are no visible candles. Stateless — recomputes the snap
-// from the current crosshair x and visible window, matching what's rendered.
+// inactive, there are no visible candles, or it sits on an empty slot (a future
+// slot or one over a gap; see vroom_chart_get_crosshair_info). Stateless —
+// recomputes the snap from the current crosshair x and visible window,
+// matching what's rendered.
 bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 
 // What the crosshair currently snaps to, including future candle-aligned slots

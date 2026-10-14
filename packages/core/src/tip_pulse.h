@@ -29,7 +29,8 @@ constexpr float kRingSeconds = 0.9f;
 // Ring width as a multiple of the dot radius: a 6pt dot gets a 5pt ring.
 constexpr float kWidthMul = 5.f / 6.f;
 
-constexpr float kPeakAlpha = 0.7f;
+// Alpha the ring starts at, the same as Liveline's live-dot pulse.
+constexpr float kPeakAlpha = 0.35f;
 
 // The ring at one instant. Alpha already accounts for the rest, so a caller can
 // paint unconditionally and simply draw nothing visible.

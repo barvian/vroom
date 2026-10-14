@@ -19,10 +19,10 @@ TEST_CASE("the ring is five sixths of the dot radius wide") {
     CHECK(6.f * kWidthMul == doctest::Approx(5.f));
 }
 
-TEST_CASE("the cycle starts at full strength with the ring's inner edge on the dot") {
+TEST_CASE("the cycle starts at 35% with the ring's inner edge on the dot") {
     const Frame f = at(0.f);
     CHECK(f.radius_mul - kWidthMul / 2.f == doctest::Approx(1.f));
-    CHECK(f.alpha == doctest::Approx(kPeakAlpha));
+    CHECK(f.alpha == doctest::Approx(0.35f));
 }
 
 TEST_CASE("the ring grows by twice its width as it fades out") {

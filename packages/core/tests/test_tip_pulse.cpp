@@ -6,7 +6,7 @@
 
 using vroom::tip_pulse::at;
 using vroom::tip_pulse::Frame;
-using vroom::tip_pulse::kPeakAlpha;
+using vroom::tip_pulse::kDefaultStartAlpha;
 using vroom::tip_pulse::kPeriodSeconds;
 using vroom::tip_pulse::kRingSeconds;
 using vroom::tip_pulse::kWidthMul;
@@ -19,16 +19,28 @@ TEST_CASE("the ring is five sixths of the dot radius wide") {
     CHECK(6.f * kWidthMul == doctest::Approx(5.f));
 }
 
-TEST_CASE("the cycle starts at 35% with the ring's inner edge on the dot") {
+TEST_CASE("the cycle starts at 40% by default with the ring's inner edge on the dot") {
     const Frame f = at(0.f);
     CHECK(f.radius_mul - kWidthMul / 2.f == doctest::Approx(1.f));
-    CHECK(f.alpha == doctest::Approx(0.35f));
+    CHECK(f.alpha == doctest::Approx(0.4f));
+    CHECK(kDefaultStartAlpha == doctest::Approx(0.4f));
+}
+
+TEST_CASE("a custom start opacity scales the whole fade") {
+    CHECK(at(0.f, 0.8f).alpha == doctest::Approx(0.8f));
+    CHECK(at(kRingSeconds / 2.f / kPeriodSeconds, 0.8f).alpha == doctest::Approx(0.4f));
+    CHECK(at(0.f, 0.8f).radius_mul == doctest::Approx(at(0.f).radius_mul));
+
+    SUBCASE("out-of-range values clamp to [0,1]") {
+        CHECK(at(0.f, 1.5f).alpha == doctest::Approx(1.f));
+        CHECK(at(0.f, -0.5f).alpha == doctest::Approx(0.f));
+    }
 }
 
 TEST_CASE("the ring grows by twice its width as it fades out") {
     const Frame mid = at_seconds(kRingSeconds / 2.f);
     CHECK(mid.radius_mul - at(0.f).radius_mul == doctest::Approx(kWidthMul));
-    CHECK(mid.alpha == doctest::Approx(kPeakAlpha / 2.f));
+    CHECK(mid.alpha == doctest::Approx(kDefaultStartAlpha / 2.f));
 
     const Frame end = at_seconds(kRingSeconds);
     CHECK(end.radius_mul - at(0.f).radius_mul == doctest::Approx(2.f * kWidthMul));

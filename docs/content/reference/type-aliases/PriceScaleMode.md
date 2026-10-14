@@ -4,7 +4,7 @@
 type PriceScaleMode = "linear" | "log";
 ```
 
-Source: [types/src/index.ts:242](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L242)
+Source: [types/src/index.ts:247](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L247)
 
 How prices map onto the y-axis.
 'linear' — default: equal price differences take equal vertical distance.

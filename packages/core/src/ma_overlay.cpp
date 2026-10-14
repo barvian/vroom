@@ -423,6 +423,7 @@ void draw_close_tip(SkCanvas* canvas,
                     float opacity,
                     bool pulse,
                     float pulse_phase,
+                    float pulse_opacity,
                     const CandleSnapshot* from,
                     std::size_t from_n,
                     float morph_t) {
@@ -461,7 +462,7 @@ void draw_close_tip(SkCanvas* canvas,
     // Ring first: it starts flush with the dot, and the dot paints over the
     // antialiased seam where the two meet.
     if (pulse) {
-        const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase);
+        const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase, pulse_opacity);
         if (f.alpha > 0.f) {
             SkPaint ring;
             ring.setAntiAlias(true);

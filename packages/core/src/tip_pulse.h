@@ -29,8 +29,9 @@ constexpr float kRingSeconds = 0.9f;
 // Ring width as a multiple of the dot radius: a 6pt dot gets a 5pt ring.
 constexpr float kWidthMul = 5.f / 6.f;
 
-// Alpha the ring starts at, the same as Liveline's live-dot pulse.
-constexpr float kPeakAlpha = 0.35f;
+// Default for VROOM_FLOAT_LINE_TIP_PULSE_OPACITY, the alpha the ring starts at.
+// Liveline's live-dot pulse starts at 0.35.
+constexpr float kDefaultStartAlpha = 0.4f;
 
 // The ring at one instant. Alpha already accounts for the rest, so a caller can
 // paint unconditionally and simply draw nothing visible.
@@ -41,11 +42,12 @@ struct Frame {
 
 // Ring state at `phase`, in cycles. Values outside [0,1) wrap, so a caller can
 // hand over raw elapsed time divided by the period without normalizing.
-inline Frame at(float phase) {
+// `start_alpha` is clamped to [0,1].
+inline Frame at(float phase, float start_alpha = kDefaultStartAlpha) {
     const float p = phase - std::floor(phase);
     const float t = std::min(1.f, p * kPeriodSeconds / kRingSeconds);
     return Frame{1.f + kWidthMul / 2.f + t * 2.f * kWidthMul,
-                 kPeakAlpha * (1.f - t)};
+                 std::clamp(start_alpha, 0.f, 1.f) * (1.f - t)};
 }
 
 }  // namespace vroom::tip_pulse

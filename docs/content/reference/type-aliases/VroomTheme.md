@@ -22,6 +22,7 @@ type VroomTheme = {
   lineTension?: number;
   lineTipDot?: boolean;
   lineTipPulse?: boolean;
+  lineTipPulseOpacity?: number;
   lineWidth?: number;
   showXAxis?: boolean;
   showYAxis?: boolean;
@@ -306,6 +307,19 @@ continuously — leave it off for charts that should be able to go idle.
 
 ---
 
+### lineTipPulseOpacity?
+
+```ts
+optional lineTipPulseOpacity?: number;
+```
+
+Source: [types/src/index.ts:194](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L194)
+
+Opacity of the `lineTipPulse` ring as it leaves the dot, from 0 to 1. The
+ring fades from here to fully transparent as it grows. Defaults to 0.4.
+
+---
+
 ### lineWidth?
 
 ```ts
@@ -324,7 +338,7 @@ Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:209](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L209)
+Source: [types/src/index.ts:214](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L214)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -339,7 +353,7 @@ grows into it, and the time labels and crosshair time badge fade first.
 optional showYAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:202](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L202)
+Source: [types/src/index.ts:207](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L207)
 
 Show the price (y) axis strip down the right edge. Defaults to `true`.
 

@@ -188,6 +188,11 @@ export type VroomTheme = {
    */
   lineTipPulse?: boolean;
   /**
+   * Opacity of the `lineTipPulse` ring as it leaves the dot, from 0 to 1. The
+   * ring fades from here to fully transparent as it grows. Defaults to 0.4.
+   */
+  lineTipPulseOpacity?: number;
+  /**
    * Show the price (y) axis strip down the right edge. Defaults to `true`.
    *
    * Hiding it collapses the strip and hands the reclaimed width to the plot, so

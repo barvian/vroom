@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "tip_pulse.h"
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
@@ -129,7 +130,8 @@ void draw_close_gradient(SkCanvas* canvas,
 // draws nothing.
 //
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
-// divided by tip_pulse::kPeriodSeconds. Ignored unless `pulse`.
+// divided by tip_pulse::kPeriodSeconds. `pulse_opacity` is the ring's alpha as
+// it leaves the dot. Both are ignored unless `pulse`.
 //
 // `candle_right` bounds where the marked candle may be for the marker to draw at
 // all; `clip_right` bounds the paint, and is wider — the dot overhangs the plot
@@ -152,6 +154,7 @@ void draw_close_tip(SkCanvas* canvas,
                     float opacity = 1.f,
                     bool pulse = false,
                     float pulse_phase = 0.f,
+                    float pulse_opacity = tip_pulse::kDefaultStartAlpha,
                     const CandleSnapshot* from = nullptr,
                     std::size_t from_n = 0,
                     float morph_t = 1.f);

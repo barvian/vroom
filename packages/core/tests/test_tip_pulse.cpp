@@ -47,10 +47,15 @@ TEST_CASE("the ring grows by twice its width as it fades out") {
     CHECK(end.alpha == doctest::Approx(0.f));
 }
 
+TEST_CASE("a 0.9s ring every 1.5s, as Liveline's live dot does") {
+    CHECK(kPeriodSeconds == doctest::Approx(1.5f));
+    CHECK(kRingSeconds == doctest::Approx(0.9f));
+}
+
 TEST_CASE("the rest draws nothing") {
-    // Most of the period is dead time — that gap is the whole reason this reads
-    // as a heartbeat, so it has to stay fully transparent.
-    for (float s : {0.9f, 1.2f, 1.8f, 2.19f}) {
+    // That gap is the whole reason this reads as a heartbeat, so it has to stay
+    // fully transparent.
+    for (float s : {0.9f, 1.1f, 1.3f, 1.49f}) {
         CHECK(at_seconds(s).alpha == doctest::Approx(0.f));
     }
 }

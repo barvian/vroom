@@ -1,10 +1,10 @@
 // The pulsing ring at the line chart's tip — a phase in, a radius and an alpha
 // out (VROOM_FLOAT_LINE_TIP_PULSE).
 //
-// Shaped and timed like a live-price knob: a stroked ring starts with its inner
-// edge on the dot, grows outward by twice its width while it fades out, then
-// rests until the next beat. The rest is most of the period,
-// and it is what makes the ring read as a heartbeat instead of a strobe.
+// Shaped like a live-price knob and timed like Liveline's live dot: a stroked
+// ring starts with its inner edge on the dot, grows outward by twice its width
+// while it fades out, then rests until the next beat. That rest is what makes
+// the ring read as a heartbeat instead of a strobe.
 //
 // Sizes come out as multiples of the dot radius rather than pixels, because the
 // tip dot scales with the line width and the ring has to scale with it (see
@@ -21,7 +21,7 @@
 namespace vroom::tip_pulse {
 
 // One full expand-and-rest cycle.
-constexpr float kPeriodSeconds = 2.2f;
+constexpr float kPeriodSeconds = 1.5f;
 
 // How long the ring is visible at the start of each cycle.
 constexpr float kRingSeconds = 0.9f;

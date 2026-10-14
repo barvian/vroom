@@ -180,7 +180,7 @@ export type VroomTheme = {
    */
   lineTipDot?: boolean;
   /**
-   * Pulse a ring outward from the tip dot, once every 2.2s. Defaults to `false`.
+   * Pulse a ring outward from the tip dot, once every 1.5s. Defaults to `false`.
    *
    * Ignored when `lineTipDot` is off, and suppressed when the OS asks for reduced
    * motion. Because the ring never stops, enabling it keeps the chart repainting

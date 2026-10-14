@@ -446,6 +446,12 @@ float measure_price(const SkFont& font, double price, const vroom::PriceFormat& 
 
 }  // namespace
 
+BadgeTextMetrics badge_text_metrics(const SkFont& font) {
+    SkRect digit;
+    font.measureText("0", 1, SkTextEncoding::kUTF8, &digit);
+    return {digit.height(), -(digit.fTop + digit.fBottom) * 0.5f};
+}
+
 static_assert(kAxisBadgePadH == vroom::price_lines::kPadH,
               "the y-axis strip budgets the badge pad the pills actually draw");
 

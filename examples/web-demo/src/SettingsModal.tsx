@@ -481,7 +481,7 @@ export function SettingsModal({
                   />
                   <StyleToggle
                     label="Line tip pulse"
-                    title="Pulse a ring out from the tip dot every 2.6s. Keeps the chart repainting continuously."
+                    title="Pulse a ring out from the tip dot every 2.2s. Keeps the chart repainting continuously."
                     checked={numericStyle.lineTipPulse}
                     onChange={(v) => onNumericStyleChange({ lineTipPulse: v })}
                   />

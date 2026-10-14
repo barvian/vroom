@@ -458,26 +458,18 @@ void draw_close_tip(SkCanvas* canvas,
         SkRect::MakeLTRB(0.f, 0.f, std::max(candle_right, clip_right),
                          candle_area_h));
 
-    // Ring first: the dot paints over its inner edge, so it reads as
-    // expanding out from underneath the dot rather than around it.
+    // Ring first: it starts flush with the dot, and the dot paints over the
+    // antialiased seam where the two meet.
     if (pulse) {
         const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase);
-        const float r = dot_r * f.radius_mul;
-        if (f.fill_alpha > 0.f) {
-            SkPaint fill;
-            fill.setAntiAlias(true);
-            fill.setColor(static_cast<SkColor>(line_color));
-            fill.setAlphaf(fill.getAlphaf() * f.fill_alpha * opacity);
-            canvas->drawCircle(tip.fX, tip.fY, r, fill);
-        }
-        if (f.stroke_alpha > 0.f) {
-            SkPaint edge;
-            edge.setAntiAlias(true);
-            edge.setColor(static_cast<SkColor>(line_color));
-            edge.setAlphaf(edge.getAlphaf() * f.stroke_alpha * opacity);
-            edge.setStyle(SkPaint::kStroke_Style);
-            edge.setStrokeWidth(1.f);
-            canvas->drawCircle(tip.fX, tip.fY, r, edge);
+        if (f.alpha > 0.f) {
+            SkPaint ring;
+            ring.setAntiAlias(true);
+            ring.setColor(static_cast<SkColor>(line_color));
+            ring.setAlphaf(ring.getAlphaf() * f.alpha * opacity);
+            ring.setStyle(SkPaint::kStroke_Style);
+            ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
+            canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
         }
     }
 

@@ -199,6 +199,32 @@ export type VroomTheme = {
    */
   lineTipPulseOpacity?: number;
   /**
+   * Dash length in px of the current-price indicator's dashed line. Defaults to 2.
+   *
+   * This is the length you see, caps included: with `priceIndicatorRoundCap`
+   * on, the round ends are taken out of it rather than added to it.
+   */
+  priceIndicatorDashLength?: number;
+  /**
+   * Gap in px between the current-price indicator's dashes. Defaults to 2; 0
+   * draws a solid line.
+   *
+   * Like `priceIndicatorDashLength`, this is the gap you see, caps included.
+   */
+  priceIndicatorDashGap?: number;
+  /** Stroke width in px of the current-price indicator's dashed line. Defaults to 1. */
+  priceIndicatorLineWidth?: number;
+  /**
+   * Opacity of the current-price indicator's dashed line, from 0 to 1. Defaults
+   * to 1.
+   *
+   * Multiplies the alpha of `accentBull` / `accentBear`, so a translucent accent
+   * gets fainter still. The price badge keeps the accent's own alpha.
+   */
+  priceIndicatorLineOpacity?: number;
+  /** Round the ends of the current-price indicator's dashes. Defaults to `false`. */
+  priceIndicatorRoundCap?: boolean;
+  /**
    * Show the price (y) axis strip down the right edge. Defaults to `true`.
    *
    * Hiding it collapses the strip and hands the reclaimed width to the plot, so

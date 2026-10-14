@@ -22,13 +22,13 @@
 #include "labels.h"
 #include "price_format.h"
 #include "price_indicator_anim.h"
+#include "price_indicator_dash.h"
 #include "theme.h"
 #include "viewport.h"
 
 namespace vroom::price_indicator {
 
 namespace {
-constexpr SkScalar kDash[2] = {2.f, 2.f};
 constexpr float kPadV = 4.f;     // box padding above/below the text
 constexpr float kPadH = 8.f;     // box padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-box corner radius
@@ -97,11 +97,22 @@ void draw(SkCanvas* canvas,
     const float line_right = join_badge
         ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
         : candle_right;
+    const float* f = chart.theme.floats;
+    const float width = f[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX];
+    const bool round_cap = f[VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP] > 0.5f;
+    const auto iv = vroom::price_indicator_dash::intervals(
+        f[VROOM_FLOAT_PRICE_INDICATOR_DASH_PX],
+        f[VROOM_FLOAT_PRICE_INDICATOR_GAP_PX], width, round_cap);
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(color);
-    line.setStrokeWidth(1.f);
-    line.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
+    line.setAlphaf(line.getAlphaf() * f[VROOM_FLOAT_PRICE_INDICATOR_OPACITY]);
+    line.setStrokeWidth(width);
+    line.setStrokeCap(round_cap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
+    if (iv.off > 0.f) {
+        const SkScalar dash[2] = {iv.on, iv.off};
+        line.setPathEffect(SkDashPathEffect::Make(dash, 0.f));
+    }
     canvas->drawLine(0.f, y, line_right, y, line);
     if (!show_badge) return;
 

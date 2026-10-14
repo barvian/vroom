@@ -1,6 +1,7 @@
 #include "doctest.h"
 
 #include "price_indicator_anim.h"
+#include "price_indicator_dash.h"
 #include "viewport.h"
 
 using vroom::CandleSnapshot;
@@ -142,4 +143,34 @@ TEST_CASE("the accent cross-fades only when the candle changes direction") {
         CHECK(level_at(lay, band, 160.0, true, &from, band, 1.f).bull_t ==
               doctest::Approx(1.f));
     }
+}
+
+TEST_CASE("flat dash caps use the dash and gap as is") {
+    const auto iv = vroom::price_indicator_dash::intervals(2.f, 2.f, 1.f, false);
+    CHECK(iv.on == doctest::Approx(2.f));
+    CHECK(iv.off == doctest::Approx(2.f));
+}
+
+TEST_CASE("round dash caps move the cap width from the dash into the gap") {
+    using vroom::price_indicator_dash::intervals;
+
+    const auto thin = intervals(4.f, 8.f, 1.f, true);
+    CHECK(thin.on == doctest::Approx(3.f));
+    CHECK(thin.off == doctest::Approx(9.f));
+
+    const auto thick = intervals(4.f, 8.f, 2.f, true);
+    CHECK(thick.on == doctest::Approx(2.f));
+    CHECK(thick.off == doctest::Approx(10.f));
+}
+
+TEST_CASE("a round-capped dash shorter than the width is a dot on the same period") {
+    const auto iv = vroom::price_indicator_dash::intervals(1.f, 4.f, 3.f, true);
+    CHECK(iv.on == doctest::Approx(0.f));
+    CHECK(iv.off == doctest::Approx(5.f));
+}
+
+TEST_CASE("a zero dash gap draws solid") {
+    using vroom::price_indicator_dash::intervals;
+    CHECK(intervals(4.f, 0.f, 1.f, false).off == doctest::Approx(0.f));
+    CHECK(intervals(4.f, 0.f, 1.f, true).off == doctest::Approx(0.f));
 }

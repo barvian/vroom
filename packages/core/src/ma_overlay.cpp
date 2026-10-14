@@ -419,7 +419,6 @@ void draw_close_tip(SkCanvas* canvas,
                     float clip_right,
                     float candle_area_h,
                     uint32_t line_color,
-                    uint32_t bg_color,
                     float line_width,
                     float opacity,
                     bool pulse,
@@ -445,9 +444,7 @@ void draw_close_tip(SkCanvas* canvas,
     if (tip.fY < 0.f || tip.fY > candle_area_h) return;
     if (tip.fX < 0.f || tip.fX > candle_right) return;
 
-    const auto geo = vroom::tip_geometry::of(line_width);
-    const float dot_r = geo.dot_r;
-    const float border_r = geo.border_r;
+    const float dot_r = vroom::tip_geometry::of(line_width).dot_r;
 
     canvas->save();
     // Wider than the on-pane test above: the dot is anchored at the newest
@@ -461,11 +458,11 @@ void draw_close_tip(SkCanvas* canvas,
         SkRect::MakeLTRB(0.f, 0.f, std::max(candle_right, clip_right),
                          candle_area_h));
 
-    // Ring first: the border paints over its inner edge, so it reads as
+    // Ring first: the dot paints over its inner edge, so it reads as
     // expanding out from underneath the dot rather than around it.
     if (pulse) {
         const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase);
-        const float r = border_r * f.radius_mul;
+        const float r = dot_r * f.radius_mul;
         if (f.fill_alpha > 0.f) {
             SkPaint fill;
             fill.setAntiAlias(true);
@@ -483,14 +480,6 @@ void draw_close_tip(SkCanvas* canvas,
             canvas->drawCircle(tip.fX, tip.fY, r, edge);
         }
     }
-
-    // Filled rather than stroked: an annulus stroked around the dot leaves an
-    // antialiased seam where the two meet, which shows up as a dark hairline.
-    SkPaint border;
-    border.setAntiAlias(true);
-    border.setColor(static_cast<SkColor>(bg_color));
-    border.setAlphaf(border.getAlphaf() * opacity);
-    canvas->drawCircle(tip.fX, tip.fY, border_r, border);
 
     SkPaint dot;
     dot.setAntiAlias(true);

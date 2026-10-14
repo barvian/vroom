@@ -956,7 +956,6 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             canvas, lay, bounds, visible, tip_slots, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
-            theme.colors[VROOM_COLOR_BACKGROUND],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], tip_opacity,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds, tip_from,

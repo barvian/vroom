@@ -13,6 +13,7 @@
 #include "include/effects/SkDashPathEffect.h"
 #pragma clang diagnostic pop
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -34,6 +35,28 @@ constexpr float kPadH = 8.f;     // box padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-box corner radius
 static_assert(kPadH == vroom::labels::kAxisBadgePadH,
               "the stroke ends on the pad this badge actually draws");
+
+// Advance of `s` with every digit drawn as the widest one. The box is sized by
+// this rather than by the digits it shows, so its edge, and the dash pattern
+// anchored there, hold still as the price ticks, even in a font with
+// proportional figures.
+float stable_width(const SkFont& font, const char* s, size_t len) {
+    char widest = '0';
+    float widest_w = 0.f;
+    for (char d = '0'; d <= '9'; ++d) {
+        const float w = font.measureText(&d, 1, SkTextEncoding::kUTF8);
+        if (w > widest_w) {
+            widest_w = w;
+            widest = d;
+        }
+    }
+    char buf[48];
+    len = std::min(len, sizeof(buf));
+    for (size_t i = 0; i < len; ++i) {
+        buf[i] = s[i] >= '0' && s[i] <= '9' ? widest : s[i];
+    }
+    return font.measureText(buf, len, SkTextEncoding::kUTF8);
+}
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -78,6 +101,7 @@ void draw(SkCanvas* canvas,
     size_t len = 0;
     SkRect tb = SkRect::MakeEmpty();
     float text_w = 0.f;
+    float box_text_w = 0.f;
     if (show_badge) {
         font = SkFont(tf, vroom::badge_font_px(chart.theme));
         font.setSubpixel(true);
@@ -91,11 +115,13 @@ void draw(SkCanvas* canvas,
         // Tight glyph bounds (origin at the baseline) so the digits center on
         // `y` even when the font's cap-height metric misses the digit extent.
         text_w = font.measureText(buf, len, SkTextEncoding::kUTF8, &tb);
+        box_text_w = stable_width(font, buf, len);
     }
 
     // Meet the badge when it will draw. Otherwise stop at the plot edge.
     const float line_right = join_badge
-        ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
+        ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px,
+                                         box_text_w)
         : candle_right;
     const float* f = chart.theme.floats;
     const float width = f[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX];
@@ -113,17 +139,19 @@ void draw(SkCanvas* canvas,
         const SkScalar dash[2] = {iv.on, iv.off};
         line.setPathEffect(SkDashPathEffect::Make(dash, 0.f));
     }
-    canvas->drawLine(0.f, y, line_right, y, line);
+    const float start_x =
+        vroom::price_indicator_dash::stroke_start(line_right, width, round_cap);
+    canvas->drawLine(start_x, y, 0.f, y, line);
     if (!show_badge) return;
 
     const float glyph_h = tb.height();
 
-    // Box wraps the digits (width follows the text), centered on the y-axis
-    // container's center so its text shares the same column as the y-axis
-    // labels, and vertically centered on the price y.
+    // Box wraps the digits, centered on the y-axis container's center so its
+    // text shares the same column as the y-axis labels, and vertically
+    // centered on the price y.
     const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
     const float box_h = glyph_h + 2.f * kPadV;
-    const float box_w = text_w + 2.f * kPadH;
+    const float box_w = box_text_w + 2.f * kPadH;
     const float box_left = axis_center_x - box_w * 0.5f;
     const float top = y - box_h * 0.5f;
     const SkRect rect =

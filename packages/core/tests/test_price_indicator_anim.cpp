@@ -174,3 +174,23 @@ TEST_CASE("a zero dash gap draws solid") {
     CHECK(intervals(4.f, 0.f, 1.f, false).off == doctest::Approx(0.f));
     CHECK(intervals(4.f, 0.f, 1.f, true).off == doctest::Approx(0.f));
 }
+
+TEST_CASE("the dash pattern hangs off the line's right end") {
+    using vroom::price_indicator_dash::intervals;
+    using vroom::price_indicator_dash::stroke_start;
+    constexpr float kRight = 300.f;
+
+    SUBCASE("flat caps start the first dash at the edge") {
+        CHECK(stroke_start(kRight, 1.f, false) == doctest::Approx(kRight));
+    }
+
+    SUBCASE("a round cap ends flush with the edge, a whole dash long") {
+        const float width = 2.f;
+        const float start = stroke_start(kRight, width, true);
+        const auto iv = intervals(4.f, 8.f, width, true);
+        // Drawn leftward from `start`, the first dash covers [start - on, start]
+        // and its caps reach half the width past either end.
+        CHECK(start + width * 0.5f == doctest::Approx(kRight));
+        CHECK(start - iv.on - width * 0.5f == doctest::Approx(kRight - 4.f));
+    }
+}

@@ -327,9 +327,21 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
+    // Out to the y-axis strip rather than candle_right, because the close line
+    // and its fill run on through the gutter (draw_chart, 6.45). The morph
+    // captures slice through here too, so a capture and the frame it eases into
+    // always pair the same candles.
+    int64_t end_ms = visible_end_ms;
+    const int64_t window_ms = visible_end_ms - visible_start_ms;
+    const auto lay = layout();
+    const float area_w = vroom::candle_area_width(lay);
+    if (window_ms > 0 && area_w > 0.f && lay.right_padding_px > 0.f) {
+        end_ms += static_cast<int64_t>(
+            std::ceil(static_cast<double>(lay.right_padding_px) / area_w *
+                      static_cast<double>(window_ms)));
+    }
     return vroom::draw_indices(candles.data(), candles.size(),
-                               visible_start_ms, visible_end_ms,
-                               candle_duration_ms);
+                               visible_start_ms, end_ms, candle_duration_ms);
 }
 
 vroom::IndexRange VroomChart::fit_range() const {
@@ -792,21 +804,6 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         float morph_t = 1.f;
     } close_line;
     const bool tip_dot = theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f;
-    // The candles under the gutter, and the neighbour past it, so the line runs
-    // on through the gutter instead of stopping one candle past candle_right.
-    // Both passes take the same count, so the curve and the fill's ramp agree
-    // across the seam. Not mid-reshape: the capture is indexed from the newest
-    // drawn candle, and extra slots would pair it with the wrong ones.
-    std::size_t line_n = n;
-    if (tip_dot && !reshape && window_ms > 0 && tip_clip_right > candle_right) {
-        const auto gutter_ms = static_cast<int64_t>(
-            std::ceil(static_cast<double>(tip_clip_right - candle_right) /
-                      candle_right * static_cast<double>(window_ms)));
-        const auto ext = vroom::draw_indices(
-            candles.data(), candles.size(), visible_start_ms,
-            visible_end_ms + gutter_ms, candle_duration_ms);
-        if (ext.end > range.end) line_n = ext.end - range.start;
-    }
 
     if (fade_out) {
         // First half: only what was captured, at the axis envelope opacity.
@@ -891,7 +888,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // 4.4. Line-mode gradient fill — the wash under the close polyline.
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
-                    canvas, lay, bounds, visible, line_n, window_ms,
+                    canvas, lay, bounds, visible, n, window_ms,
                     visible_start_ms, candle_duration_ms, candle_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], fade,
@@ -944,13 +941,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             }
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
-                    canvas, lay, bounds, visible, line_n, window_ms,
+                    canvas, lay, bounds, visible, n, window_ms,
                     visible_start_ms, candle_duration_ms, candle_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade, morph_src,
                     morph_n_draw, morph_t,
                     theme.floats[VROOM_FLOAT_LINE_TENSION]);
-                close_line = {fade, wrap ? axis_phase.opacity : 1.f, line_n,
+                close_line = {fade, wrap ? axis_phase.opacity : 1.f, n,
                               morph_src, morph_n_draw, morph_t};
             }
 

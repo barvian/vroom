@@ -127,8 +127,8 @@ void draw_close_gradient(SkCanvas* canvas,
 //
 // `n` counts the slots to the candle being marked, which is the series' newest
 // rather than the visible slice's — see tip_anchor.h, which derives it. That
-// candle can sit off the pane when panned into history, and the marker then
-// draws nothing.
+// candle can sit off the pane when panned into history; the marker keeps drawing
+// until neither the dot nor its ring reaches into the clip.
 //
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
 // divided by tip_pulse::kPeriodSeconds. `pulse_opacity` is the ring's alpha as

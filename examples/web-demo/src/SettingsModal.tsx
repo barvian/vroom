@@ -475,7 +475,7 @@ export function SettingsModal({
                   />
                   <StyleToggle
                     label="Line tip dot"
-                    title="Mark the line chart's newest end with a dot, sized off the line width and ringed in the background color."
+                    title="Mark the line chart's newest end with a dot, sized off the line width."
                     checked={numericStyle.lineTipDot}
                     onChange={(v) => onNumericStyleChange({ lineTipDot: v })}
                   />

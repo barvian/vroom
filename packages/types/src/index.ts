@@ -173,10 +173,10 @@ export type VroomTheme = {
   /**
    * Mark the line chart's newest end with a dot. Defaults to `true`.
    *
-   * Takes its color from `line` and its radius from `lineWidth`, wrapped in a 2px
-   * ring of `background` that separates it from the line itself. Only drawn in
-   * line mode, and it crossfades along with the line during a candle↔line
-   * transition.
+   * Takes its color from `line` and its radius from `lineWidth`.
+   *
+   * Only drawn in line mode, and it crossfades along with the line during a
+   * candle↔line transition.
    */
   lineTipDot?: boolean;
   /**

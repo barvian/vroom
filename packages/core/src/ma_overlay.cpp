@@ -34,7 +34,8 @@ void stroke_path(SkCanvas* canvas,
                  float candle_area_h,
                  uint32_t color,
                  float width,
-                 float opacity) {
+                 float opacity,
+                 float clip_left = 0.f) {
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(static_cast<SkColor>(color));
@@ -46,7 +47,7 @@ void stroke_path(SkCanvas* canvas,
     line.setStrokeWidth(width > 0.f ? width : 1.5f);
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    canvas->clipRect(SkRect::MakeLTRB(clip_left, 0.f, candle_right, candle_area_h));
     canvas->drawPath(path, line);
     canvas->restore();
 }
@@ -334,7 +335,8 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from,
                      std::size_t from_n,
                      float morph_t,
-                     float tension) {
+                     float tension,
+                     float clip_left) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
@@ -345,8 +347,12 @@ void draw_close_line(SkCanvas* canvas,
                                         visible_start_ms, candle_duration_ms,
                                         from, from_n, morph_t, tension);
     if (path.isEmpty()) return;
+    // Nothing reaches the clip. Stops a second pass from adding the stroke's or
+    // the fill's edge pixels just past a vertex that sits inside clip_left.
+    if (clip_left > 0.f && path.getBounds().right() <= clip_left) return;
 
-    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity);
+    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity,
+                clip_left);
 }
 
 void draw_close_gradient(SkCanvas* canvas,
@@ -365,7 +371,8 @@ void draw_close_gradient(SkCanvas* canvas,
                          const CandleSnapshot* from,
                          std::size_t from_n,
                          float morph_t,
-                         float tension) {
+                         float tension,
+                         float clip_left) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     gradient_opacity = std::clamp(gradient_opacity, 0.f, 1.f);
     opacity = std::clamp(opacity, 0.f, 1.f);
@@ -385,6 +392,7 @@ void draw_close_gradient(SkCanvas* canvas,
     const SkRect b = line.getBounds();
     const float top = std::max(b.top(), 0.f);
     if (top >= candle_area_h) return;
+    if (clip_left > 0.f && b.right() <= clip_left) return;  // see draw_close_line
 
     // Drop from the last vertex to the pane bottom and back along it, turning the
     // polyline into the closed region beneath the line.
@@ -402,7 +410,7 @@ void draw_close_gradient(SkCanvas* canvas,
         vroom::linear_alpha_ramp(pts, static_cast<SkColor>(color), alpha, 0.f));
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    canvas->clipRect(SkRect::MakeLTRB(clip_left, 0.f, candle_right, candle_area_h));
     canvas->drawPath(area.detach(), fill);
     canvas->restore();
 }

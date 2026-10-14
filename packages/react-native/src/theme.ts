@@ -34,6 +34,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   lineGradientOpacity: 12, // VROOM_FLOAT_LINE_GRADIENT_OPACITY
   lineTension: 13, // VROOM_FLOAT_LINE_TENSION
   lineTipPulseOpacity: 17, // VROOM_FLOAT_LINE_TIP_PULSE_OPACITY
+  lineTipDotRadius: 18, // VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX
 };
 
 // Named because useChartCore clears it directly under reduced motion, outside

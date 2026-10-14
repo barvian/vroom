@@ -71,6 +71,12 @@ TEST_CASE("the ring only ever grows within a cycle") {
     CHECK(at(1.f).radius_mul == doctest::Approx(at(0.f).radius_mul));
 }
 
+TEST_CASE("a 6pt dot gets a 5pt ring reaching 21pt") {
+    constexpr float kDotR = 6.f;
+    CHECK(kDotR * kWidthMul == doctest::Approx(5.f));
+    CHECK(kDotR * (at(0.999f).radius_mul + kWidthMul / 2.f) == doctest::Approx(21.f));
+}
+
 TEST_CASE("at its widest the ring reaches 3.5x the dot radius") {
     // tip_geometry.h leaves the ring out of the gutter on the strength of this.
     CHECK(at(0.999f).radius_mul + kWidthMul / 2.f == doctest::Approx(3.5f));

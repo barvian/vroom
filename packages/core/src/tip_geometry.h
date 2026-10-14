@@ -29,9 +29,12 @@ struct Geometry {
     float dot_r;  // the filled dot in the line's color
 };
 
-// Scaling off the stroke keeps the marker proportionate at any line width; the
-// floor stops a hairline chart from getting an invisible dot.
-inline Geometry of(float line_width) {
+// A positive `dot_radius` (VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX) is used as is.
+// Otherwise the dot scales off the stroke, which keeps the marker proportionate
+// at any line width; the floor stops a hairline chart from getting an invisible
+// dot.
+inline Geometry of(float line_width, float dot_radius = 0.f) {
+    if (dot_radius > 0.f) return Geometry{dot_radius};
     const float w = line_width > 0.f ? line_width : 1.5f;
     const float dot_r = std::max(2.f, w * 1.5f);
     return Geometry{dot_r};
@@ -43,8 +46,8 @@ inline Geometry of(float line_width) {
 // so the center is at worst flush with that edge and the dot overhangs it by
 // exactly `dot_r`. A gutter of that plus the clearance therefore makes "the
 // dot never touches the axis strip" true by construction, whatever the window.
-inline float gutter_px(float line_width) {
-    return of(line_width).dot_r + kClearPx;
+inline float gutter_px(float line_width, float dot_radius = 0.f) {
+    return of(line_width, dot_radius).dot_r + kClearPx;
 }
 
 }  // namespace vroom::tip_geometry

@@ -420,6 +420,7 @@ void draw_close_tip(SkCanvas* canvas,
                     float candle_area_h,
                     uint32_t line_color,
                     float line_width,
+                    float dot_radius,
                     float opacity,
                     bool pulse,
                     float pulse_phase,
@@ -445,7 +446,7 @@ void draw_close_tip(SkCanvas* canvas,
     if (tip.fY < 0.f || tip.fY > candle_area_h) return;
     if (tip.fX < 0.f || tip.fX > candle_right) return;
 
-    const float dot_r = vroom::tip_geometry::of(line_width).dot_r;
+    const float dot_r = vroom::tip_geometry::of(line_width, dot_radius).dot_r;
 
     canvas->save();
     // Wider than the on-pane test above: the dot is anchored at the newest

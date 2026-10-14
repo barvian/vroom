@@ -22,10 +22,21 @@ TEST_CASE("the dot scales with the stroke and floors at a visible size") {
     }
 }
 
+TEST_CASE("an explicit radius overrides the stroke") {
+    CHECK(of(3.f, 6.f).dot_r == doctest::Approx(6.f));
+    CHECK(of(0.5f, 1.f).dot_r == doctest::Approx(1.f));
+
+    SUBCASE("zero or negative follows the stroke, as when unset") {
+        CHECK(of(3.f, 0.f).dot_r == of(3.f).dot_r);
+        CHECK(of(3.f, -1.f).dot_r == of(3.f).dot_r);
+    }
+}
+
 TEST_CASE("the gutter clears the dot at every line width") {
     for (const float w : {0.5f, 1.f, 1.5f, 3.f, 8.f}) {
         CHECK(gutter_px(w) >= of(w).dot_r + kClearPx);
     }
+    CHECK(gutter_px(3.f, 6.f) == doctest::Approx(6.f + kClearPx));
 }
 
 // The regression this file exists for: with the view pinned to the latest bar,
@@ -58,4 +69,20 @@ TEST_CASE("the tip dot clears the y-axis when the view sits on the newest bar") 
         // into the axis; only the dot is promised.
         CHECK(tip_x + of(kLineWidth).dot_r * 3.5f > axis_left);
     }
+}
+
+TEST_CASE("an explicit dot radius widens the gutter to keep the same clearance") {
+    constexpr float kWidth = 390.f;
+    constexpr float kAxisW = 56.f;
+    constexpr float kDotR = 6.f;
+
+    vroom::Layout lay{};
+    lay.width_px = kWidth;
+    lay.height_px = 600.f;
+    lay.y_axis_width_px = kAxisW;
+    lay.right_padding_px = std::max(6.f, gutter_px(3.f, kDotR));
+
+    const float axis_left = kWidth - kAxisW;
+    const float dot_right = vroom::candle_area_width(lay) + of(3.f, kDotR).dot_r;
+    CHECK(axis_left - dot_right >= doctest::Approx(kClearPx));
 }

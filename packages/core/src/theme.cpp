@@ -51,6 +51,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.f,    // LINE_TIP_PULSE — the ring is opt-in; it never lets the chart idle
     0.f,    // BADGE_FONT_SIZE_PX — follow AXIS_FONT_SIZE_PX
     tip_pulse::kDefaultStartAlpha,  // LINE_TIP_PULSE_OPACITY — 0.4
+    0.f,    // LINE_TIP_DOT_RADIUS_PX — follow LINE_WIDTH_PX
 };
 
 }  // namespace

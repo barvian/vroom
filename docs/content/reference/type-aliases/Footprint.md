@@ -9,7 +9,7 @@ type Footprint = {
 };
 ```
 
-Source: [types/src/index.ts:1010](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1010)
+Source: [types/src/index.ts:1016](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1016)
 
 A single filled trade, drawn as a circular badge above the candle it fell in —
 the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
@@ -33,7 +33,7 @@ twenty fills still shows one badge and still reports all twenty.
 id: string;
 ```
 
-Source: [types/src/index.ts:1012](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1012)
+Source: [types/src/index.ts:1018](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1018)
 
 Stable unique id, echoed back in `onFootprint`.
 
@@ -45,7 +45,7 @@ Stable unique id, echoed back in `onFootprint`.
 optional price?: number;
 ```
 
-Source: [types/src/index.ts:1021](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1021)
+Source: [types/src/index.ts:1027](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1027)
 
 Execution price. Ignored by the renderer (badges sit above the bar, not at
 the fill), and carried through to `onFootprint` for your own UI.
@@ -58,7 +58,7 @@ the fill), and carried through to `onFootprint` for your own UI.
 side: FootprintSide;
 ```
 
-Source: [types/src/index.ts:1016](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1016)
+Source: [types/src/index.ts:1022](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1022)
 
 Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 
@@ -70,6 +70,6 @@ Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:1014](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1014)
+Source: [types/src/index.ts:1020](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1020)
 
 Execution time as Unix epoch milliseconds, unsnapped.

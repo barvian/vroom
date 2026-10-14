@@ -33,6 +33,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   lineGradientOpacity: FloatKey.LineGradientOpacity,
   lineTension: FloatKey.LineTension,
   lineTipPulseOpacity: FloatKey.LineTipPulseOpacity,
+  lineTipDotRadius: FloatKey.LineTipDotRadius,
 };
 
 // Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).

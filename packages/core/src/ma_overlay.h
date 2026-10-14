@@ -116,9 +116,9 @@ void draw_close_gradient(SkCanvas* canvas,
                          float morph_t = 1.f,
                          float tension = 0.f);
 
-// The marker at the line's newest end: a dot in `line_color`, `dot_radius` px
-// or (when <= 0) sized off `line_width`, and optionally a pulse expanding out
-// from behind it.
+// The marker at the line's newest end: a dot in `line_color` with a radius of
+// `dot_scale` × `line_width` (tip_geometry.h), and optionally a pulse expanding
+// out from behind it.
 //
 // Takes the same geometry and morph arguments as draw_close_line and reads the
 // same vertex, so the dot stays on the line's end pixel through a timeframe
@@ -152,7 +152,7 @@ void draw_close_tip(SkCanvas* canvas,
                     float candle_area_h,
                     uint32_t line_color,
                     float line_width,
-                    float dot_radius,
+                    float dot_scale,
                     float opacity = 1.f,
                     bool pulse = false,
                     float pulse_phase = 0.f,

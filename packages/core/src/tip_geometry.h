@@ -25,19 +25,21 @@ namespace vroom::tip_geometry {
 // the price labels reads as a rendering fault even when nothing is clipped.
 constexpr float kClearPx = 4.f;
 
+// Default for VROOM_FLOAT_LINE_TIP_DOT_SCALE: the dot's radius as a multiple of
+// the line width.
+constexpr float kDefaultDotScale = 2.f;
+
 struct Geometry {
     float dot_r;  // the filled dot in the line's color
 };
 
-// A positive `dot_radius` (VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX) is used as is.
-// Otherwise the dot scales off the stroke, which keeps the marker proportionate
-// at any line width; the floor stops a hairline chart from getting an invisible
-// dot.
-inline Geometry of(float line_width, float dot_radius = 0.f) {
-    if (dot_radius > 0.f) return Geometry{dot_radius};
+// The dot scales off the stroke, which keeps the marker proportionate at any
+// line width; the floor stops a hairline chart from getting an invisible dot.
+// A `dot_scale` <= 0 means unset.
+inline Geometry of(float line_width, float dot_scale = kDefaultDotScale) {
     const float w = line_width > 0.f ? line_width : 1.5f;
-    const float dot_r = std::max(2.f, w * 1.5f);
-    return Geometry{dot_r};
+    const float scale = dot_scale > 0.f ? dot_scale : kDefaultDotScale;
+    return Geometry{std::max(2.f, w * scale)};
 }
 
 // Gutter width that lets the dot draw in full with `kClearPx` to spare.
@@ -46,8 +48,8 @@ inline Geometry of(float line_width, float dot_radius = 0.f) {
 // so the center is at worst flush with that edge and the dot overhangs it by
 // exactly `dot_r`. A gutter of that plus the clearance therefore makes "the
 // dot never touches the axis strip" true by construction, whatever the window.
-inline float gutter_px(float line_width, float dot_radius = 0.f) {
-    return of(line_width, dot_radius).dot_r + kClearPx;
+inline float gutter_px(float line_width, float dot_scale = kDefaultDotScale) {
+    return of(line_width, dot_scale).dot_r + kClearPx;
 }
 
 }  // namespace vroom::tip_geometry

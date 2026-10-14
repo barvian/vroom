@@ -84,7 +84,7 @@ vroom::Layout VroomChart::layout() const {
         const float wanted = std::max(
             base_pad, vroom::tip_geometry::gutter_px(
                           theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-                          theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]));
+                          theme.floats[VROOM_FLOAT_LINE_TIP_DOT_SCALE]));
         right_pad = base_pad + (wanted - base_pad) *
                                    std::clamp(morph_fade, 0.f, 1.f);
     }
@@ -990,7 +990,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,
+            theme.floats[VROOM_FLOAT_LINE_TIP_DOT_SCALE], tip_opacity,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,

@@ -173,18 +173,19 @@ export type VroomTheme = {
   /**
    * Mark the line chart's newest end with a dot. Defaults to `true`.
    *
-   * Takes its color from `line` and its radius from `lineTipDotRadius`.
+   * Takes its color from `line` and its size from `lineTipDotScale`.
    *
    * Only drawn in line mode, and it crossfades along with the line during a
    * candle↔line transition.
    */
   lineTipDot?: boolean;
   /**
-   * Radius of the `lineTipDot` in px. Defaults to 1.5× `lineWidth`, and never
-   * less than 2px. The `lineTipPulse` ring scales with it: five sixths of the
-   * radius wide, reaching 3.5× the radius at its widest.
+   * Radius of the `lineTipDot` as a multiple of `lineWidth`. Defaults to 2, and
+   * the dot is never less than 2px in radius. The `lineTipPulse` ring scales
+   * with it: five sixths of the radius wide, reaching 3.5× the radius at its
+   * widest.
    */
-  lineTipDotRadius?: number;
+  lineTipDotScale?: number;
   /**
    * Pulse a ring outward from the tip dot, once every 1.5s. Defaults to `false`.
    *

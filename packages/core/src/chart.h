@@ -510,6 +510,24 @@ struct VroomChart {
                              const vroom::PriceBounds& bounds,
                              vroom::IndexRange range, int64_t window_ms);
 
+    // The candles every layer draws, morph capture included: centered in the
+    // window plus one past each edge (vroom::draw_indices).
+    vroom::IndexRange draw_range() const;
+
+    // The candles whose center is in the window (vroom::fit_indices): what the
+    // price auto-fit and the crosshair read, so a candle the clip mostly hides
+    // never moves the scale or catches the pointer.
+    vroom::IndexRange fit_range() const;
+
+    // The price scale on screen: the manual bounds, else the auto-fit over
+    // fit_range(). Every hit test and projection reads this so they line up
+    // with draw_chart.
+    vroom::PriceBounds screen_price_bounds() const;
+
+    // The crosshair's slot, snapped over fit_range() so it never lands on a
+    // candle whose center is off screen. `index` is into `candles`.
+    vroom::SnapResult crosshair_snap(const vroom::Layout& lay) const;
+
     // Source indices whose *displaced* plot time lands in the visible window,
     // for an Ichimoku span drawn at `time_ms + shift_ms`. A bar of padding
     // either side keeps a run reaching the pane edge instead of stopping at the

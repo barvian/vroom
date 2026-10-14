@@ -208,6 +208,85 @@ IndexRange visible_indices(const ::VroomCandle* candles,
     };
 }
 
+namespace {
+
+IndexRange centered_indices(const ::VroomCandle* candles,
+                            size_t count,
+                            int64_t start_ms,
+                            int64_t end_ms,
+                            int64_t candle_duration_ms) {
+    // Centers compared at twice their value so an odd duration stays exact.
+    const int64_t dur = std::max<int64_t>(candle_duration_ms, 0);
+    auto* first = std::lower_bound(
+        candles, candles + count, 2 * start_ms,
+        [dur](const ::VroomCandle& c, int64_t t) {
+            return 2 * c.time_ms + dur < t;
+        });
+    auto* last = std::upper_bound(
+        candles, candles + count, 2 * end_ms,
+        [dur](int64_t t, const ::VroomCandle& c) {
+            return t < 2 * c.time_ms + dur;
+        });
+    return {
+        static_cast<size_t>(first - candles),
+        static_cast<size_t>(last - candles),
+    };
+}
+
+}  // namespace
+
+IndexRange draw_indices(const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t start_ms,
+                        int64_t end_ms,
+                        int64_t candle_duration_ms) {
+    if (count == 0) return {0, 0};
+    if (start_ms == 0 && end_ms == 0) return {0, count};
+    IndexRange r =
+        centered_indices(candles, count, start_ms, end_ms, candle_duration_ms);
+    if (r.start > 0) --r.start;
+    if (r.end < count) ++r.end;
+    return r;
+}
+
+SnapResult snap_to_fit_slot(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            IndexRange fit,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px) {
+    const size_t n = fit.end - fit.start;
+    if (n == 0) return {visible_start_ms, false, 0};
+    SnapResult snap =
+        snap_to_slot(layout, candles + fit.start, n, candle_duration_ms,
+                     visible_start_ms, window_ms, x_px);
+    if (snap.has_candle) {
+        snap.index += fit.start;
+    } else if (fit.end < count) {
+        const int64_t next = candles[fit.end].time_ms;
+        const int64_t half = candle_duration_ms / 2;
+        if (snap.time_ms >= next - half && snap.time_ms <= next + half) {
+            return {candles[fit.end - 1].time_ms, true, fit.end - 1};
+        }
+    }
+    return snap;
+}
+
+IndexRange fit_indices(const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t start_ms,
+                       int64_t end_ms,
+                       int64_t candle_duration_ms) {
+    if (count == 0) return {0, 0};
+    if (start_ms == 0 && end_ms == 0) return {0, count};
+    const IndexRange r =
+        centered_indices(candles, count, start_ms, end_ms, candle_duration_ms);
+    if (r.end > r.start) return r;
+    return draw_indices(candles, count, start_ms, end_ms, candle_duration_ms);
+}
+
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
     PriceBounds b{
         std::numeric_limits<double>::infinity(),

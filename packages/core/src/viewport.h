@@ -198,6 +198,28 @@ IndexRange visible_indices(const ::VroomCandle* candles,
                            int64_t start_ms,
                            int64_t end_ms);
 
+// The candles to draw for the window [start_ms, end_ms]: every candle whose
+// center (time_ms + candle_duration_ms / 2) is inside it, plus one neighbour
+// past each edge. That neighbour is the candle that can still be partly on
+// screen and the vertex the line runs off the edge to; the plot clip trims
+// both. Same sentinels and sort invariant as visible_indices.
+IndexRange draw_indices(const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t start_ms,
+                        int64_t end_ms,
+                        int64_t candle_duration_ms);
+
+// The candles the price auto-fit and the crosshair read: those whose center is
+// inside [start_ms, end_ms], i.e. whose wick is on screen, so a neighbour that
+// draw_indices adds never stretches the scale or catches the crosshair. Falls
+// back to draw_indices when no center is in view (zoomed inside one slot, or a
+// window over a gap in the data) so there is still something to fit.
+IndexRange fit_indices(const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t start_ms,
+                       int64_t end_ms,
+                       int64_t candle_duration_ms);
+
 // Width of one candle body in pixels, computed from the time slot a single
 // candle occupies (candle_duration_ms / window_ms × candle area).
 float candle_body_width(const Layout& layout,
@@ -275,6 +297,19 @@ SnapResult snap_to_slot(const Layout& layout,
                         int64_t visible_start_ms,
                         int64_t window_ms,
                         float x_px);
+
+// snap_to_slot over the fit slice [fit.start, fit.end) of the full series,
+// with the index into the full series. Past the last candle in the slice, the
+// slot holding the next candle (centered just off the right edge) stays on the
+// last one in view; any other slot past it, like one over a gap, is empty.
+SnapResult snap_to_fit_slot(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            IndexRange fit,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px);
 
 // On-screen x of the slot whose center is nearest pixel x_px, searching
 // [candles, candles+count) and the future grid past the last candle. Returns

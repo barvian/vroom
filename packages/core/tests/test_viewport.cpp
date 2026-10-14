@@ -445,6 +445,173 @@ TEST_CASE("visible_indices") {
     }
 }
 
+TEST_CASE("snap_to_fit_slot") {
+    Layout l = make_layout();
+    constexpr int64_t kDur = 100;
+
+    SUBCASE("contiguous: past the last centered candle stays on it") {
+        VroomCandle candles[10];
+        for (int i = 0; i < 10; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+        // [0,600]: centers 50..550 (0..5) are in view; 6 is centered at 650.
+        const IndexRange fit = vroom::fit_indices(candles, 10, 0, 600, kDur);
+        REQUIRE(fit.start == 0);
+        REQUIRE(fit.end == 6);
+        // x=1000 -> key 550, the slot of candle 6 just past the right edge.
+        auto r = vroom::snap_to_fit_slot(l, candles, 10, fit, kDur, 0, 600,
+                                         1000.f);
+        CHECK(r.has_candle == true);
+        CHECK(r.index == 5u);
+        CHECK(r.time_ms == 500);
+    }
+
+    SUBCASE("gap: an empty slot before the next candle stays empty") {
+        // Mon..Fri at 0..400, then the next Monday at 700.
+        VroomCandle candles[7];
+        const int64_t times[7] = {0, 100, 200, 300, 400, 700, 800};
+        for (int i = 0; i < 7; ++i) candles[i] = ohlc(times[i], 1.0, 2.0);
+        // [100,600]: Tue..Fri (1..4) are centered in view, Monday (750) isn't.
+        const IndexRange fit = vroom::fit_indices(candles, 7, 100, 600, kDur);
+        REQUIRE(fit.start == 1);
+        REQUIRE(fit.end == 5);
+
+        // x=900 -> key 500: Saturday.
+        auto sat = vroom::snap_to_fit_slot(l, candles, 7, fit, kDur, 100, 500,
+                                           900.f);
+        CHECK(sat.has_candle == false);
+        CHECK(sat.time_ms == 500);
+
+        // x=1000 -> key 550, nearest slot is Sunday.
+        auto sun = vroom::snap_to_fit_slot(l, candles, 7, fit, kDur, 100, 500,
+                                           1000.f);
+        CHECK(sun.has_candle == false);
+        CHECK(sun.time_ms == 600);
+
+        // Over Friday itself still reports Friday, with its full-series index.
+        auto fri = vroom::snap_to_fit_slot(l, candles, 7, fit, kDur, 100, 500,
+                                           700.f);
+        CHECK(fri.has_candle == true);
+        CHECK(fri.index == 4u);
+        CHECK(fri.time_ms == 400);
+    }
+
+    SUBCASE("end of the series: future slots stay empty") {
+        VroomCandle candles[4];
+        for (int i = 0; i < 4; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+        const IndexRange fit = vroom::fit_indices(candles, 4, 0, 600, kDur);
+        REQUIRE(fit.end == 4);
+        // x=1000 -> key 550, 2.5 slots past the last candle (300) -> 600.
+        auto r = vroom::snap_to_fit_slot(l, candles, 4, fit, kDur, 0, 600,
+                                         1000.f);
+        CHECK(r.has_candle == false);
+        CHECK(r.time_ms == 600);
+    }
+
+    SUBCASE("empty fit slice") {
+        VroomCandle candles[1] = {ohlc(0, 1.0, 2.0)};
+        auto r = vroom::snap_to_fit_slot(l, candles, 1, IndexRange{0, 0}, kDur,
+                                         0, 600, 500.f);
+        CHECK(r.has_candle == false);
+        CHECK(r.time_ms == 0);
+    }
+}
+
+TEST_CASE("draw_indices and fit_indices") {
+    // Duration 100: candle i spans [i*100, i*100+100), center at i*100+50.
+    VroomCandle candles[5];
+    for (int i = 0; i < 5; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+    constexpr int64_t kDur = 100;
+    const auto draw = [&](int64_t s, int64_t e) {
+        return vroom::draw_indices(candles, 5, s, e, kDur);
+    };
+    const auto fit = [&](int64_t s, int64_t e) {
+        return vroom::fit_indices(candles, 5, s, e, kDur);
+    };
+
+    SUBCASE("left edge: draw keeps the straddling candle, fit drops it") {
+        // [180,330]: only center 250 (2) is inside. Candle 1 (center 150) still
+        // covers 180..200 and candle 3 (center 350) reaches back past 330.
+        IndexRange d = draw(180, 330);
+        CHECK(d.start == 1);
+        CHECK(d.end == 4);
+        IndexRange f = fit(180, 330);
+        CHECK(f.start == 2);
+        CHECK(f.end == 3);
+    }
+
+    SUBCASE("draw reaches a vertex past each edge for the line") {
+        // [120,380]: centers 150, 250, 350 (1..3) are inside, so the line also
+        // needs 0 (center 50) and 4 (center 450) to run off both edges.
+        IndexRange d = draw(120, 380);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
+        IndexRange f = fit(120, 380);
+        CHECK(f.start == 1);
+        CHECK(f.end == 4);
+    }
+
+    SUBCASE("a center exactly on an edge counts as inside") {
+        IndexRange f = fit(150, 350);
+        CHECK(f.start == 1);
+        CHECK(f.end == 4);
+        IndexRange d = draw(150, 350);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
+    }
+
+    SUBCASE("odd durations place the center exactly") {
+        // Duration 101: candle 1's center is 150.5, just past an end of 150.
+        IndexRange f = vroom::fit_indices(candles, 5, 1, 150, 101);
+        CHECK(f.start == 0);
+        CHECK(f.end == 1);
+    }
+
+    SUBCASE("both clamp to the data") {
+        IndexRange d = draw(-100, 1000);
+        CHECK(d.start == 0);
+        CHECK(d.end == 5);
+        IndexRange f = fit(-100, 1000);
+        CHECK(f.start == 0);
+        CHECK(f.end == 5);
+    }
+
+    SUBCASE("fit falls back to draw when no center is in view") {
+        // [210,240] sits inside candle 2's slot, left of its center.
+        IndexRange f = fit(210, 240);
+        CHECK(f.start == 1);
+        CHECK(f.end == 3);
+        IndexRange d = draw(210, 240);
+        CHECK(d.start == f.start);
+        CHECK(d.end == f.end);
+    }
+
+    SUBCASE("unframed and empty sentinels") {
+        IndexRange all = draw(0, 0);
+        CHECK(all.start == 0);
+        CHECK(all.end == 5);
+        all = fit(0, 0);
+        CHECK(all.start == 0);
+        CHECK(all.end == 5);
+        IndexRange none = vroom::draw_indices(candles, 0, 100, 300, kDur);
+        CHECK(none.start == 0);
+        CHECK(none.end == 0);
+        none = vroom::fit_indices(candles, 0, 100, 300, kDur);
+        CHECK(none.start == 0);
+        CHECK(none.end == 0);
+    }
+
+    SUBCASE("auto-fit ignores a fully off-screen neighbour") {
+        // Candle 1 spikes to 100 but its center (150) is left of the window;
+        // draw_indices still includes it so the clip can trim it.
+        candles[1] = ohlc(100, 1.0, 100.0);
+        IndexRange d = draw(180, 330);
+        REQUIRE(d.start == 1);
+        IndexRange f = fit(180, 330);
+        PriceBounds b = vroom::auto_price_bounds(candles + f.start,
+                                                 f.end - f.start, false);
+        CHECK(b.max < 3.0);
+    }
+}
+
 TEST_CASE("price_bounds") {
     SUBCASE("empty defaults to {0,1}") {
         PriceBounds b = vroom::price_bounds(nullptr, 0);

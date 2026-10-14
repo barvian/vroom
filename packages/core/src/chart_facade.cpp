@@ -18,6 +18,7 @@
 #include "labels.h"
 #include "price_line_layout.h"
 #include "price_lines.h"
+#include "tip_geometry.h"
 #include "viewport.h"
 
 class SkCanvas;
@@ -44,7 +45,7 @@ constexpr double kMaxCandleBodyPx = 32.0;
 // A gap this small is far under the 3/4-window cap, so it neither triggers the
 // pan rubber-band nor gets clamped away; a timeframe switch carries it over in
 // slots (see timeframeWindow in the hosts), which preserves it in pixels.
-constexpr double kRightGapPx = 12.0;
+constexpr double kRightGapPx = vroom::tip_geometry::kRightGapPx;
 
 // Hard cap on the future gap (visible_end - last_candle): 3/4 of the window so
 // at least 25% of the chart still shows candles. Never forces an existing larger

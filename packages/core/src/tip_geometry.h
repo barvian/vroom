@@ -52,6 +52,19 @@ inline float gutter_px(float line_width, float dot_radius = 0.f) {
     return of(line_width, dot_radius).dot_r + kClearPx;
 }
 
+// Trailing gap the default framing leaves past the newest candle's slot (see
+// apply_default_framing in chart_facade.cpp).
+constexpr float kRightGapPx = 12.f;
+
+// How far, 0 to 1, the gutter fades its content out toward the y-axis strip,
+// given where the newest candle's slot ends. A view following the latest bar
+// parks the tip's pulse ring partly in the gutter, so the fade only eases in
+// over the first gutter width of panning back from that framing.
+inline float gutter_fade(float newest_slot_end_x, float candle_right, float gutter_w) {
+    if (gutter_w <= 0.f) return 0.f;
+    return std::clamp((newest_slot_end_x + kRightGapPx - candle_right) / gutter_w, 0.f, 1.f);
+}
+
 // Whether a marker `extent` px in radius, centered at (x, y), still shows any
 // of itself inside the clip rect [0, right] x [0, bottom]. draw_close_tip keeps
 // drawing until this is false, so the dot and its ring slide off an edge

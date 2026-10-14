@@ -5,7 +5,9 @@
 #include "tip_geometry.h"
 #include "viewport.h"
 
+using vroom::tip_geometry::gutter_fade;
 using vroom::tip_geometry::gutter_px;
+using vroom::tip_geometry::kRightGapPx;
 using vroom::tip_geometry::kClearPx;
 using vroom::tip_geometry::of;
 using vroom::tip_geometry::reaches_clip;
@@ -125,4 +127,19 @@ TEST_CASE("the marker keeps drawing until none of it is left in the clip") {
         CHECK(reaches_clip(100.f, 250.f, kDotR, kRight, kBottom));
         CHECK(reaches_clip(kRight, 0.f, kDotR, kRight, kBottom));
     }
+}
+
+// The gutter fades its content out toward the strip, but a view following the
+// latest bar must leave the tip and its pulse ring, which reach into it, alone.
+TEST_CASE("the gutter fade eases in as the view pans back from the latest bar") {
+    constexpr float kRight = 324.f;  // candle_right
+    constexpr float kGutter = 10.f;
+    constexpr float kLatest = kRight - kRightGapPx;  // the newest slot's end, framed
+
+    CHECK(gutter_fade(kLatest, kRight, kGutter) == 0.f);
+    CHECK(gutter_fade(kLatest - 40.f, kRight, kGutter) == 0.f);  // panned into the future
+    CHECK(gutter_fade(kLatest + kGutter / 2.f, kRight, kGutter) == doctest::Approx(0.5f));
+    CHECK(gutter_fade(kLatest + kGutter, kRight, kGutter) == 1.f);
+    CHECK(gutter_fade(kRight + 200.f, kRight, kGutter) == 1.f);
+    CHECK(gutter_fade(kRight + 200.f, kRight, 0.f) == 0.f);  // no gutter, nothing to fade
 }

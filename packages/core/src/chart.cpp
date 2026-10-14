@@ -30,6 +30,7 @@
 #include "drawings.h"
 #include "footprints.h"
 #include "fvg_overlay.h"
+#include "gradient.h"
 #include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
@@ -1054,6 +1055,22 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
             tip_from_n, tip_morph_t);
+    }
+
+    // 6.55. Fade what 6.45 and 6.5 put under the gutter out to the background by
+    //       the y-axis strip, rather than cutting it off there. Ahead of the
+    //       labels, price line and crosshair, which stay unfaded.
+    const float gutter_fade = vroom::tip_geometry::gutter_fade(
+        vroom::candle_center_x(lay, candles.back().time_ms + candle_duration_ms, 0,
+                               visible_start_ms, window_ms),
+        candle_right, tip_clip_right - candle_right);
+    if (gutter_fade > 0.f) {
+        const SkPoint pts[2] = {{candle_right, 0.f}, {tip_clip_right, 0.f}};
+        SkPaint mask;
+        mask.setShader(vroom::linear_alpha_ramp(
+            pts, theme.colors[VROOM_COLOR_BACKGROUND], 0.f, gutter_fade));
+        canvas->drawRect(
+            SkRect::MakeLTRB(candle_right, 0.f, tip_clip_right, candle_area_h), mask);
     }
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)

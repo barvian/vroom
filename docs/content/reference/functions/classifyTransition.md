@@ -4,7 +4,7 @@
 function classifyTransition(prev, next, seriesKeyChanged): DataTransition;
 ```
 
-Source: react-native/src/dataTransitions.ts:78
+Source: [react-native/src/dataTransitions.ts:78](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/dataTransitions.ts#L78)
 
 Classify a candles-prop change. `prev` is the previously rendered array
 (null on first render); `seriesKeyChanged` forces `reset` regardless of the

@@ -533,7 +533,7 @@ typedef enum {
     VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
     VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
     // The current-price indicator's dashed line. Dash and gap are the visible
-    // lengths, round caps included (see price_indicator_dash.h).
+    // lengths, round caps included (see price_indicator.h).
     VROOM_FLOAT_PRICE_INDICATOR_DASH_PX,    // dash length px
     VROOM_FLOAT_PRICE_INDICATOR_GAP_PX,     // gap px; 0 draws a solid line
     VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px

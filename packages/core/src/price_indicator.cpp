@@ -22,7 +22,6 @@
 #include "labels.h"
 #include "price_format.h"
 #include "price_indicator_anim.h"
-#include "price_indicator_dash.h"
 #include "theme.h"
 #include "viewport.h"
 

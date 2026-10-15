@@ -1,7 +1,7 @@
 #include "doctest.h"
 
+#include "price_indicator.h"
 #include "price_indicator_anim.h"
-#include "price_indicator_dash.h"
 #include "viewport.h"
 
 using vroom::CandleSnapshot;

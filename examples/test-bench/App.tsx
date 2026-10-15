@@ -23,7 +23,16 @@ import {
   type PlotRect,
   type PriceLine,
   type PriceScaleMode,
+  type CrosshairLineStyle,
 } from 'react-native-vroom-chart';
+
+// The line-style button steps through these, then back to the mode default.
+const CROSSHAIR_LINE_STYLES: readonly (CrosshairLineStyle | undefined)[] = [
+  undefined,
+  'dashed',
+  'dotted',
+  'solid',
+];
 
 import {
   DEFAULT_BOLLINGER_PARAMS,
@@ -600,6 +609,21 @@ export default function App() {
     Haptics.selectionAsync().catch(() => {});
   }, []);
 
+  // Sparkline preset: the simple crosshair and no axes, toggled together.
+  const [spark, setSpark] = useState(false);
+  const toggleSpark = useCallback(() => {
+    setSpark(!spark);
+    setShowYAxis(spark);
+    setShowXAxis(spark);
+    Haptics.selectionAsync().catch(() => {});
+  }, [spark]);
+  // Undefined = the mode's default style.
+  const [crosshairLineStyle, setCrosshairLineStyle] = useState<CrosshairLineStyle | undefined>();
+  const cycleCrosshairLineStyle = useCallback(() => {
+    setCrosshairLineStyle((s) => CROSSHAIR_LINE_STYLES[(CROSSHAIR_LINE_STYLES.indexOf(s) + 1) % CROSSHAIR_LINE_STYLES.length]);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
   // A new object each render would re-push the whole theme every frame.
   const theme = useMemo(
     // The 1.5 default stroke reads thin on a phone held at arm's length.
@@ -894,6 +918,14 @@ export default function App() {
             chartType={chartType}
             priceScaleMode={priceScaleMode}
             autoscaleY={autoscaleY}
+            crosshair={{
+              mode: spark ? 'simple' : 'advanced',
+              lineStyle: crosshairLineStyle,
+              hour12: spark,
+              badgeColor: spark ? '#2962ff' : undefined,
+              simple: { height: 0.9 },
+              button: { enabled: showCrosshairButton },
+            }}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
             theme={theme}
@@ -975,7 +1007,6 @@ export default function App() {
             onPriceLineClose={onPriceLineClose}
             footprints={showFootprints ? footprints : undefined}
             onFootprint={onFootprint}
-            crosshairButton={{ enabled: showCrosshairButton }}
             onCrosshairButton={onCrosshairButton}
           />
           <FootprintTooltip hover={footprintHover} />
@@ -1221,6 +1252,36 @@ export default function App() {
                   style={[styles.fnSymbol, !showXAxis && styles.fnSymbolActive]}
                 >
                   ⇩
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, spark && styles.fnBtnActive]}
+                onPress={toggleSpark}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    spark && styles.fnSymbolActive,
+                  ]}
+                >
+                  SPARK
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, crosshairLineStyle != null && styles.fnBtnActive]}
+                onPress={cycleCrosshairLineStyle}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    crosshairLineStyle != null && styles.fnSymbolActive,
+                  ]}
+                >
+                  {crosshairLineStyle?.toUpperCase() ?? 'LINE'}
                 </Text>
               </Pressable>
 

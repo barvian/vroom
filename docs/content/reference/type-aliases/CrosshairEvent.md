@@ -14,7 +14,7 @@ type CrosshairEvent = {
 };
 ```
 
-Source: [types/src/index.ts:27](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L27)
+Source: types/src/index.ts:27
 
 Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 
@@ -26,7 +26,7 @@ Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 active: boolean;
 ```
 
-Source: [types/src/index.ts:29](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L29)
+Source: types/src/index.ts:29
 
 True while the crosshair is showing; false when it's dismissed.
 
@@ -38,7 +38,7 @@ True while the crosshair is showing; false when it's dismissed.
 candle: Candle | null;
 ```
 
-Source: [types/src/index.ts:36](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L36)
+Source: types/src/index.ts:36
 
 OHLCV of the candle under the crosshair, or null when inactive. Also null
 when the crosshair is parked on a _future_ candle-aligned slot in the empty
@@ -58,7 +58,7 @@ indicator:
   | null;
 ```
 
-Source: [types/src/index.ts:57](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L57)
+Source: types/src/index.ts:57
 
 The indicator pane under the crosshair and its value at the horizontal line
 (what that pane's badge shows), or null over the price pane. `value` is in
@@ -72,7 +72,7 @@ the pane's own units: RSI on its 0–100 scale, MACD and ATR in price units.
 price: number | null;
 ```
 
-Source: [types/src/index.ts:51](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L51)
+Source: types/src/index.ts:51
 
 Free price at the crosshair's horizontal line (what the price badge shows),
 in data space. Null when inactive. Pair with `timeMs` to mirror this
@@ -90,7 +90,7 @@ empty future slot.
 reason: "show" | "move" | "hide";
 ```
 
-Source: [types/src/index.ts:68](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L68)
+Source: types/src/index.ts:68
 
 Why this event fired — lets the host react differently (e.g. haptics):
 'show' — long-press activated the crosshair
@@ -109,7 +109,7 @@ The library never plays haptics itself; the host decides.
 timeMs: number | null;
 ```
 
-Source: [types/src/index.ts:41](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L41)
+Source: types/src/index.ts:41
 
 Bar-open time (Unix epoch ms) of the slot the crosshair snaps to, including
 future candle-aligned slots past the last candle. Null when inactive.

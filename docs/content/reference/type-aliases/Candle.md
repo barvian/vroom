@@ -11,7 +11,7 @@ type Candle = {
 };
 ```
 
-Source: [types/src/index.ts:8](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L8)
+Source: types/src/index.ts:8
 
 A single OHLCV bar. `candles` is an array of these.
 
@@ -23,7 +23,7 @@ A single OHLCV bar. `candles` is an array of these.
 close: number;
 ```
 
-Source: [types/src/index.ts:18](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L18)
+Source: types/src/index.ts:18
 
 Closing price.
 
@@ -35,7 +35,7 @@ Closing price.
 high: number;
 ```
 
-Source: [types/src/index.ts:14](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L14)
+Source: types/src/index.ts:14
 
 Highest price during the bar.
 
@@ -47,7 +47,7 @@ Highest price during the bar.
 low: number;
 ```
 
-Source: [types/src/index.ts:16](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L16)
+Source: types/src/index.ts:16
 
 Lowest price during the bar.
 
@@ -59,7 +59,7 @@ Lowest price during the bar.
 open: number;
 ```
 
-Source: [types/src/index.ts:12](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L12)
+Source: types/src/index.ts:12
 
 Opening price.
 
@@ -71,7 +71,7 @@ Opening price.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:10](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L10)
+Source: types/src/index.ts:10
 
 Bar open time as Unix epoch milliseconds.
 
@@ -83,6 +83,6 @@ Bar open time as Unix epoch milliseconds.
 volume: number;
 ```
 
-Source: [types/src/index.ts:20](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L20)
+Source: types/src/index.ts:20
 
 Traded volume during the bar.

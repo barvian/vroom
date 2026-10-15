@@ -26,6 +26,7 @@ import {
   type PriceLinesSpec,
   type FootprintsSpec,
   type CrosshairButtonSpec,
+  type CrosshairStyleSpec,
   type VroomChartHandle,
   PRICE_LINE_AXIS_LABEL,
   PRICE_LINE_CLOSABLE,
@@ -35,6 +36,12 @@ import {
   FOOTPRINT_SELL,
 } from '@vroomchart/core-wasm';
 import type {
+  CrosshairButtonConfig,
+  CrosshairConfig,
+  CrosshairLineStyle,
+  CrosshairMode,
+  CrosshairTimeFormat,
+  Drawing,
   IntervalTransition,
   StreamTransition,
   TransitionEasing,
@@ -51,6 +58,20 @@ import {
 } from './dataTransitions';
 import { ease, easingIndex } from './easing';
 import { isValidDrawing } from './drawingStorage';
+
+// The drawings dependency key, stringified once per array: a controlled host
+// hands over a new array only when the drawings change, so streaming re-renders
+// don't re-serialize every pencil stroke.
+const drawingsKeys = new WeakMap<readonly Drawing[], string>();
+function drawingsKeyOf(drawings: readonly Drawing[] | undefined): string {
+  if (!drawings) return '';
+  let key = drawingsKeys.get(drawings);
+  if (key === undefined) {
+    key = JSON.stringify(drawings);
+    drawingsKeys.set(drawings, key);
+  }
+  return key;
+}
 
 function prefersReducedMotion(): boolean {
   return !!(
@@ -441,6 +462,49 @@ function crosshairButtonToSpec(
   };
 }
 
+const CROSSHAIR_MODES: readonly CrosshairMode[] = ['advanced', 'simple', 'none'];
+const CROSSHAIR_LINE_STYLES: readonly CrosshairLineStyle[] = ['dashed', 'dotted', 'solid'];
+const CROSSHAIR_TIME_FORMATS: readonly CrosshairTimeFormat[] = ['datetime', 'time', 'date'];
+
+export type ResolvedCrosshair = {
+  mode: CrosshairMode;
+  spec: CrosshairStyleSpec;
+  /** Touch lift px. */
+  offset: number;
+  /** The plus button, only ever set in advanced mode. */
+  button: CrosshairButtonConfig | undefined;
+};
+
+/**
+ * Folds the `crosshair` prop (mode string or config) over the deprecated
+ * `crosshairOffset` / `crosshairButton` props. Unset style fields go down as the
+ * core's sentinels so it owns the per-mode defaults.
+ */
+export function resolveCrosshair(
+  prop: VroomChartCoreProps['crosshair'],
+  legacyOffset: number | undefined,
+  legacyButton: CrosshairButtonConfig | undefined,
+): ResolvedCrosshair {
+  const cfg: CrosshairConfig = typeof prop === 'string' ? { mode: prop } : prop ?? {};
+  const mode = cfg.mode ?? 'advanced';
+  return {
+    mode,
+    spec: {
+      mode: CROSSHAIR_MODES.indexOf(mode),
+      lineStyle: cfg.lineStyle ? CROSSHAIR_LINE_STYLES.indexOf(cfg.lineStyle) : -1,
+      lineWidthPx: cfg.lineWidth ?? 0,
+      timeFormat: cfg.timeFormat ? CROSSHAIR_TIME_FORMATS.indexOf(cfg.timeFormat) : -1,
+      hour12: cfg.hour12 === true,
+      simpleHeight: cfg.simple?.height ?? -1,
+      dimAhead: cfg.simple?.dimAhead !== false,
+      dimOpacity: cfg.simple?.dimOpacity ?? -1,
+      badgeColor: (cfg.badgeColor != null ? parseColor(cfg.badgeColor) : null) ?? 0,
+    },
+    offset: cfg.offset ?? legacyOffset ?? 40,
+    button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,
+  };
+}
+
 export type UseChartCore = {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -452,6 +516,12 @@ export type UseChartCore = {
    * drew, whatever caused it to change.
    */
   afterPresentRef: React.RefObject<(() => void) | null>;
+  /**
+   * Called right after the committed drawings are pushed to the core, with the
+   * list that was pushed (core index order). Assign to restate an edit in
+   * progress, which that push would otherwise wipe.
+   */
+  resyncEditRef: React.RefObject<((list: Drawing[]) => void) | null>;
   /** Measured CSS size of the container (0 until first layout). */
   size: { width: number; height: number };
 };
@@ -562,6 +632,7 @@ export function useChartCore(
   // the gesture layer to report the selection's on-screen rect (which is only
   // meaningful once the frame it belongs to has been laid out).
   const afterPresentRef = useRef<(() => void) | null>(null);
+  const resyncEditRef = useRef<((list: Drawing[]) => void) | null>(null);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -780,7 +851,7 @@ export function useChartCore(
   const ichimokuKey = ichimoku ? JSON.stringify(ichimoku) : '';
   const fvgKey = fairValueGaps ? JSON.stringify(fairValueGaps) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
-  const drawingsKey = drawings ? JSON.stringify(drawings) : '';
+  const drawingsKey = drawingsKeyOf(drawings);
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   // Whether a close handler exists is part of the rendered output (it gates the
   // button), so it belongs in the key alongside the lines themselves.
@@ -790,7 +861,9 @@ export function useChartCore(
   const footprintsKey = footprints
     ? JSON.stringify([footprints, footprintsStyle ?? null])
     : '';
-  const crosshairButtonKey = crosshairButton ? JSON.stringify(crosshairButton) : '';
+  const crosshair = resolveCrosshair(props.crosshair, props.crosshairOffset, crosshairButton);
+  const crosshairButtonKey = crosshair.button ? JSON.stringify(crosshair.button) : '';
+  const crosshairStyleKey = JSON.stringify(crosshair.spec);
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -1019,7 +1092,9 @@ export function useChartCore(
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
-    h.setDrawings((drawings ?? []).filter(isValidDrawing).map(drawingToSpec));
+    const pushedDrawings = (drawings ?? []).filter(isValidDrawing);
+    h.setDrawings(pushedDrawings.map(drawingToSpec));
+    resyncEditRef.current?.(pushedDrawings);
     h.setLiquidity(
       liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
     );
@@ -1134,11 +1209,21 @@ export function useChartCore(
     if (!ready) return;
     const h = handleRef.current;
     if (!h) return;
-    h.setCrosshairButton(crosshairButtonToSpec(crosshairButton));
+    h.setCrosshairButton(crosshairButtonToSpec(crosshair.button));
     scheduleRender();
-    // crosshairButton tracked via crosshairButtonKey.
+    // crosshair.button tracked via crosshairButtonKey.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, crosshairButtonKey, scheduleRender]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.setCrosshairStyle(crosshair.spec);
+    scheduleRender();
+    // crosshair.spec tracked via crosshairStyleKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, crosshairStyleKey, scheduleRender]);
 
   // Animate the volume bars in and out when `volume.enabled` flips. The core
   // staggers the bars itself — tallest falling first, all landing together — so
@@ -1293,6 +1378,7 @@ export function useChartCore(
     handleRef,
     scheduleRender,
     afterPresentRef,
+    resyncEditRef,
     size: { width, height },
   };
 }

@@ -5,6 +5,8 @@ import {
   type CrosshairEvent,
   type CrosshairButtonConfig,
   type CrosshairButtonEvent,
+  type CrosshairLineStyle,
+  type CrosshairMode,
   type ChartMode,
   type ChartType,
   type PriceScaleMode,
@@ -720,6 +722,9 @@ export function App() {
       : 'linear',
   );
   const [autoscaleY, setAutoscaleY] = useState(false);
+  const [crosshairMode, setCrosshairMode] = useState<CrosshairMode>('advanced');
+  // Undefined = the mode's default line style.
+  const [crosshairLineStyle, setCrosshairLineStyle] = useState<CrosshairLineStyle | undefined>();
   // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
   const [easing, setEasing] = useState<TransitionEasing>(() => {
@@ -1328,6 +1333,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle }}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1351,6 +1357,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle }}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1379,6 +1386,7 @@ export function App() {
                 chartType={chartType}
                 priceScaleMode={priceScaleMode}
                 autoscaleY={autoscaleY}
+                crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle, button: crosshairButtonConfig }}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
                 intervalTransition={intervalTransition}
@@ -1390,7 +1398,6 @@ export function App() {
                 {...footprintProps}
                 {...indicatorProps}
                 {...drawProps}
-                crosshairButton={crosshairButtonConfig}
                 onCrosshairButton={onCrosshairButton}
                 onCrosshair={onPrimaryCrosshair}
               />
@@ -1402,7 +1409,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, crosshairMode, setCrosshairMode, crosshairLineStyle, setCrosshairLineStyle, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,

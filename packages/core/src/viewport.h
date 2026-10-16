@@ -220,6 +220,15 @@ IndexRange draw_indices(const ::VroomCandle* candles,
                         int64_t end_ms,
                         int64_t candle_duration_ms);
 
+// The time at plot_right: end_ms carried over the gutter the pane reclaims as
+// the y-axis collapses, so draw_indices' neighbour past the edge is the one past
+// the painted edge rather than one sitting in the gutter. Exactly end_ms with
+// the y-axis shown, and for the 0/0 sentinel or a degenerate window.
+int64_t plot_end_ms(const Layout& layout,
+                    float y_axis_collapse_t,
+                    int64_t start_ms,
+                    int64_t end_ms);
+
 // The candles the price auto-fit and the crosshair read: those whose center is
 // inside [start_ms, end_ms], i.e. whose wick is on screen, so a neighbour that
 // draw_indices adds never stretches the scale or catches the crosshair. Falls

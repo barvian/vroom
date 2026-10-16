@@ -327,9 +327,11 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
-    return vroom::draw_indices(candles.data(), candles.size(),
-                               visible_start_ms, visible_end_ms,
-                               candle_duration_ms);
+    return vroom::draw_indices(
+        candles.data(), candles.size(), visible_start_ms,
+        vroom::plot_end_ms(layout(), y_axis_collapse_t, visible_start_ms,
+                           visible_end_ms),
+        candle_duration_ms);
 }
 
 vroom::IndexRange VroomChart::fit_range() const {

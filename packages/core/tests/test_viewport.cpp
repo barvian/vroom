@@ -632,6 +632,64 @@ TEST_CASE("draw_indices and fit_indices") {
     }
 }
 
+TEST_CASE("draw range reaches past plot_right as the y-axis collapses") {
+    // Duration 100: candle i is centered at i*100+50. A wide gutter keeps the
+    // numbers round: window [0, 900] over a 900px candle area once hidden.
+    VroomCandle candles[12];
+    for (int i = 0; i < 12; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+    constexpr int64_t kDur = 100;
+    constexpr int64_t kStart = 0;
+    constexpr int64_t kEnd = 900;
+    Layout l = make_layout();
+    l.right_padding_px = 100.f;
+
+    const auto draw = [&](float t) {
+        return vroom::draw_indices(
+            candles, 12, kStart, vroom::plot_end_ms(l, t, kStart, kEnd), kDur);
+    };
+    const auto x_of = [&](size_t i) {
+        return vroom::candle_center_x(l, candles[i].time_ms, kDur, kStart,
+                                      kEnd - kStart);
+    };
+
+    SUBCASE("shown: the window's end and the range are untouched") {
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.f);
+        CHECK(vroom::plot_end_ms(l, 0.f, kStart, kEnd) == kEnd);
+        IndexRange d = draw(0.f);
+        IndexRange before = vroom::draw_indices(candles, 12, kStart, kEnd, kDur);
+        CHECK(d.start == before.start);
+        CHECK(d.end == before.end);
+        CHECK(d.end == 10);
+        CHECK(x_of(d.end - 1) > vroom::plot_right(l, 0.f));
+    }
+
+    SUBCASE("hidden: the line runs off the painted edge, not the gutter") {
+        l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
+        const float edge = vroom::plot_right(l, 1.f);
+        REQUIRE(edge == doctest::Approx(l.width_px));
+        // Candle 9 (x 950) is the neighbour past the window's end, but it now
+        // sits in the reclaimed gutter: ending there stops the line short.
+        IndexRange window_only =
+            vroom::draw_indices(candles, 12, kStart, kEnd, kDur);
+        REQUIRE(window_only.end == 10);
+        CHECK(x_of(window_only.end - 1) < edge);
+
+        CHECK(vroom::plot_end_ms(l, 1.f, kStart, kEnd) == 1000);
+        IndexRange d = draw(1.f);
+        CHECK(d.start == 0);
+        CHECK(d.end == 11);
+        CHECK(x_of(d.end - 2) <= edge);
+        CHECK(x_of(d.end - 1) > edge);
+    }
+
+    SUBCASE("sentinel and degenerate windows pass through") {
+        CHECK(vroom::plot_end_ms(l, 1.f, 0, 0) == 0);
+        CHECK(vroom::plot_end_ms(l, 1.f, 500, 500) == 500);
+        l.right_padding_px = 0.f;
+        CHECK(vroom::plot_end_ms(l, 1.f, kStart, kEnd) == kEnd);
+    }
+}
+
 TEST_CASE("price_bounds") {
     SUBCASE("empty defaults to {0,1}") {
         PriceBounds b = vroom::price_bounds(nullptr, 0);

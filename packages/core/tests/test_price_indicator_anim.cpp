@@ -226,7 +226,7 @@ TEST_CASE("every number in the price-line style blends") {
 
     const vroom::Theme candles = vroom::default_theme();  // 2 / 2, 1px, opaque
     const vroom::Theme line = price_line_theme(4.f, 8.f, 3.f, 0.3f, true);
-    const Morph m = begin(Morph{}, candles, 0.f, 1.f);
+    const Morph m = begin(Morph{}, candles, 0, 0.f, 1.f);
     const Style s = current(m, line, 0.25f);
     CHECK(s.dash == doctest::Approx(2.5f));
     CHECK(s.gap == doctest::Approx(3.5f));
@@ -245,13 +245,13 @@ TEST_CASE("the price-line blend rides the morph fade either way") {
     const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
 
     // Candles → line: captured at fade 0, then the line theme lands.
-    const Morph to_line = begin(Morph{}, candles, 0.f, 1.f);
+    const Morph to_line = begin(Morph{}, candles, 0, 0.f, 1.f);
     CHECK(current(to_line, line, 0.f).gap == doctest::Approx(2.f));
     CHECK(current(to_line, line, 1.f).gap == doctest::Approx(8.f));
 
     // Reversed at 0.6: the way back starts where the line stood.
     const Style mid = current(to_line, line, 0.6f);
-    const Morph back = begin(to_line, line, 0.6f, 0.f);
+    const Morph back = begin(to_line, line, 0, 0.6f, 0.f);
     CHECK(progress(back, 0.6f) == doctest::Approx(0.f));
     CHECK(current(back, candles, 0.6f).gap == doctest::Approx(mid.gap));
     CHECK(current(back, candles, 0.3f).gap ==
@@ -264,6 +264,36 @@ TEST_CASE("the price-line blend rides the morph fade either way") {
     CHECK(current(settled, candles, 0.6f).gap == doctest::Approx(2.f));
 }
 
+TEST_CASE("the price line and badge color blends on the same fade") {
+    using vroom::lerp_argb;
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::color;
+    constexpr uint32_t kRed = 0xFFFF0000u;    // the line theme's period color
+    constexpr uint32_t kGreen = 0xFF00FF00u;  // the candle theme's bull accent
+
+    const vroom::Theme line = vroom::default_theme();
+    CHECK(color(Morph{}, kGreen, 0.3f) == kGreen);
+
+    // Line → candles, captured red at fade 1; the candles resolve green.
+    const Morph to_candles = begin(Morph{}, line, kRed, 1.f, 0.f);
+    CHECK(color(to_candles, kGreen, 1.f) == kRed);
+    CHECK(color(to_candles, kGreen, 0.5f) == 0xFF808000u);
+    CHECK(color(to_candles, kGreen, 0.f) == kGreen);
+
+    // Reversed at 0.75: back to red from the blend on screen, not from green.
+    const uint32_t mid = color(to_candles, kGreen, 0.75f);
+    CHECK(mid == lerp_argb(kRed, kGreen, 0.25f));
+    const Morph back = begin(to_candles, line, kGreen, 0.75f, 1.f);
+    CHECK(color(back, kRed, 0.75f) == mid);
+    CHECK(color(back, kRed, 0.875f) == lerp_argb(mid, kRed, 0.5f));
+    CHECK(color(back, kRed, 1.f) == kRed);
+
+    // Ending it (set_chart_type) draws the accent whatever the fade says.
+    Morph settled = back;
+    settled.from_fade = settled.to_fade;
+    CHECK(color(settled, kRed, 0.8f) == kRed);
+}
+
 TEST_CASE("line to candles only closes the price line's gaps") {
     using vroom::price_indicator_dash::intervals;
     using vroom::price_indicator_dash::stroke_start;
@@ -273,7 +303,7 @@ TEST_CASE("line to candles only closes the price line's gaps") {
 
     const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
     const vroom::Theme candles = price_line_theme(4.f, 6.f, 1.f, 0.3f, false);
-    const Morph m = begin(Morph{}, line, 1.f, 0.f);
+    const Morph m = begin(Morph{}, line, 0, 1.f, 0.f);
     for (int i = 0; i <= 8; ++i) {
         const float t = static_cast<float>(i) / 8.f;
         const Style s = current(m, candles, 1.f - t);

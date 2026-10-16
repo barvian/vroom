@@ -1436,7 +1436,9 @@ export type VroomChartCoreProps = {
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
    *
    * On React Native, `priceIndicator*` theme keys that change in the same
-   * render as `chartType` blend across the switch instead of snapping.
+   * render as `chartType` blend across the switch instead of snapping, and so
+   * does the current-price line and badge color `accentBull` / `accentBear`
+   * resolve to.
    */
   chartType?: ChartType;
   /**

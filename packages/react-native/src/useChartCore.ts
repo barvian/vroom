@@ -914,9 +914,10 @@ export function useChartCore(
     // chartType / the candle↔line morph is driven separately (VroomChart owns the
     // per-frame animation loop so it can update the picture SharedValue directly).
     //
-    // A switch usually brings its own price-line style, so the core captures the
-    // outgoing one before the sweep below replaces it and blends between them on
-    // that morph's fade. A fresh handle, transitionMs=0 and reduced motion snap.
+    // A switch usually brings its own price-line style and accents, so the core
+    // captures the outgoing look before the sweep below replaces it and blends
+    // between them on that morph's fade. A fresh handle, transitionMs=0 and
+    // reduced motion snap.
     const line = chartType === 'line';
     const themed = themedTypeRef.current;
     if (

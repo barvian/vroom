@@ -103,6 +103,9 @@ struct VroomChart {
     // the host began one (vroom_chart_begin_price_indicator_morph);
     // set_chart_type settles it again.
     vroom::price_indicator_style::Morph price_indicator_morph{};
+    // The accent the indicator resolved last frame, before that blend: where
+    // the next begin's color starts.
+    uint32_t price_indicator_accent = 0;
 
     // Phase of the line-tip pulse, in seconds into its cycle. Unlike every other
     // animation here this one is core-driven: it loops with no endpoint for the

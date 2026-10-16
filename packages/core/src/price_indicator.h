@@ -7,7 +7,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 
+#include "color_lerp.h"
 #include "theme.h"
 
 struct VroomChart;
@@ -31,14 +33,19 @@ namespace vroom::price_indicator {
 // badge tracks the bar instead of jumping ahead of it — see
 // price_indicator_anim.h. Callers must only pass a capture that pairs with the
 // newest candle (tip_anchor.h).
-void draw(SkCanvas* canvas,
-          const VroomChart& chart,
-          const Layout& lay,
-          const PriceBounds& bounds,
-          float candle_right,
-          float candle_area_h,
-          const CandleSnapshot* morph_from = nullptr,
-          float morph_t = 1.f);
+//
+// Returns the accent it resolved from the theme, before any chart-type blend,
+// so the next vroom_chart_begin_price_indicator_morph can start from it. With
+// no candles that is the bull accent, so a series that lands mid-morph doesn't
+// fade in from transparent.
+uint32_t draw(SkCanvas* canvas,
+              const VroomChart& chart,
+              const Layout& lay,
+              const PriceBounds& bounds,
+              float candle_right,
+              float candle_area_h,
+              const CandleSnapshot* morph_from = nullptr,
+              float morph_t = 1.f);
 
 }  // namespace vroom::price_indicator
 
@@ -76,11 +83,12 @@ inline float stroke_start(float right, float width, bool round_cap) {
 
 }  // namespace vroom::price_indicator_dash
 
-// That line's stroke, and its blend across a candle↔line morph. A host
-// that styles the line per chart type would otherwise have it snap while the
-// chart around it morphs, so vroom_chart_begin_price_indicator_morph captures
-// the outgoing look and the line eases into the theme's on the morph's own
-// fade. Skia-free for the same reason as the dash layout above.
+// That line's stroke and color, and their blend across a candle↔line morph. A
+// host that styles the line or picks its accents per chart type would otherwise
+// have it snap while the chart around it morphs, so
+// vroom_chart_begin_price_indicator_morph captures the outgoing look and the
+// line and badge ease into the theme's on the morph's own fade. Skia-free for
+// the same reason as the dash layout above.
 namespace vroom::price_indicator_style {
 
 struct Style {
@@ -120,6 +128,7 @@ inline Style lerp(const Style& a, const Style& b, float t) {
 // `to_fade`. Equal fades mean settled: the theme draws as is.
 struct Morph {
     Style from{};
+    uint32_t from_color = 0;
     float from_fade = 0.f;
     float to_fade = 0.f;
 };
@@ -135,10 +144,19 @@ inline Style current(const Morph& m, const Theme& theme, float fade) {
     return t >= 1.f ? to : lerp(m.from, to, t);
 }
 
+// `accent` is the color price_indicator::draw resolved from the theme for the
+// latest candle; this is the one the line and badge draw with.
+inline uint32_t color(const Morph& m, uint32_t accent, float fade) {
+    const float t = progress(m, fade);
+    return t >= 1.f ? accent : lerp_argb(m.from_color, accent, t);
+}
+
 // Starts from whatever is on screen, so a switch that reverses mid-morph turns
 // around where the line stands instead of jumping back to a settled look.
-inline Morph begin(const Morph& m, const Theme& theme, float fade, float to_fade) {
-    return {current(m, theme, fade), fade, to_fade};
+// `accent` is the one the last frame resolved.
+inline Morph begin(const Morph& m, const Theme& theme, uint32_t accent,
+                   float fade, float to_fade) {
+    return {current(m, theme, fade), color(m, accent, fade), fade, to_fade};
 }
 
 }  // namespace vroom::price_indicator_style

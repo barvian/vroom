@@ -328,8 +328,8 @@ extern "C" void vroom_chart_begin_price_indicator_morph(VroomChart* chart,
     if (!chart) return;
     // Nothing visible changes until the theme does, so no mark_dirty.
     chart->price_indicator_morph = vroom::price_indicator_style::begin(
-        chart->price_indicator_morph, chart->theme, chart->morph_fade,
-        mode == 1 ? 1.f : 0.f);
+        chart->price_indicator_morph, chart->theme, chart->price_indicator_accent,
+        chart->morph_fade, mode == 1 ? 1.f : 0.f);
 }
 
 extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,

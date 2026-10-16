@@ -217,10 +217,30 @@ TEST_CASE("axis collapse trades strip extent for plot width") {
 
         l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
         CHECK(vroom::candle_area_width(l) == doctest::Approx(shown + 60.f));
-        // The gutter survives a hidden axis — it paints as background, so the
-        // candles keep a little breathing room at the right edge.
+        // The gutter survives a hidden axis in the layout, so the newest candle
+        // keeps a little breathing room at the right edge.
         CHECK(vroom::candle_area_width(l) ==
               doctest::Approx(l.width_px - l.right_padding_px));
+    }
+
+    SUBCASE("the pane paints over the gutter once the axis is gone") {
+        Layout l = make_layout();
+        l.right_padding_px = 10.f;
+
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.f);
+        CHECK(vroom::plot_right(l, 0.f) ==
+              doctest::Approx(vroom::candle_area_width(l)));
+
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.5f);
+        CHECK(vroom::plot_right(l, 0.5f) ==
+              doctest::Approx(vroom::candle_area_width(l) + 5.f));
+
+        // Hidden: the candles keep their gutter, but a series panned past the
+        // newest candle runs to the chart's edge instead of stopping short.
+        l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
+        CHECK(vroom::candle_area_width(l) == doctest::Approx(990.f));
+        CHECK(vroom::plot_right(l, 1.f) == doctest::Approx(l.width_px));
+        CHECK(vroom::plot_right(l, 2.f) == doctest::Approx(l.width_px));
     }
 }
 

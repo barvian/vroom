@@ -93,24 +93,22 @@ void draw(SkCanvas* canvas,
     const float line_right = join_badge
         ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
         : candle_right;
-    const float* f = chart.theme.floats;
-    const float width = f[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX];
-    const bool round_cap = f[VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP] > 0.5f;
+    const auto style = vroom::price_indicator_style::current(
+        chart.price_indicator_morph, chart.theme, chart.morph_fade);
     const auto iv = vroom::price_indicator_dash::intervals(
-        f[VROOM_FLOAT_PRICE_INDICATOR_DASH_PX],
-        f[VROOM_FLOAT_PRICE_INDICATOR_GAP_PX], width, round_cap);
+        style.dash, style.gap, style.width, style.round_cap);
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(color);
-    line.setAlphaf(line.getAlphaf() * f[VROOM_FLOAT_PRICE_INDICATOR_OPACITY]);
-    line.setStrokeWidth(width);
-    line.setStrokeCap(round_cap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
+    line.setAlphaf(line.getAlphaf() * style.opacity);
+    line.setStrokeWidth(style.width);
+    line.setStrokeCap(style.round_cap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
     if (iv.off > 0.f) {
         const SkScalar dash[2] = {iv.on, iv.off};
         line.setPathEffect(SkDashPathEffect::Make(dash, 0.f));
     }
-    const float start_x =
-        vroom::price_indicator_dash::stroke_start(line_right, width, round_cap);
+    const float start_x = vroom::price_indicator_dash::stroke_start(
+        line_right, style.width, style.round_cap);
     canvas->drawLine(start_x, y, 0.f, y, line);
     if (!show_badge) return;
 

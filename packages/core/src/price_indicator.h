@@ -8,7 +8,8 @@
 
 #include <algorithm>
 
-class SkCanvas;
+#include "theme.h"
+
 struct VroomChart;
 
 namespace vroom {
@@ -74,3 +75,70 @@ inline float stroke_start(float right, float width, bool round_cap) {
 }
 
 }  // namespace vroom::price_indicator_dash
+
+// That line's stroke, and its blend across a candle↔line morph. A host
+// that styles the line per chart type would otherwise have it snap while the
+// chart around it morphs, so vroom_chart_begin_price_indicator_morph captures
+// the outgoing look and the line eases into the theme's on the morph's own
+// fade. Skia-free for the same reason as the dash layout above.
+namespace vroom::price_indicator_style {
+
+struct Style {
+    float dash = 0.f;
+    float gap = 0.f;
+    float width = 0.f;
+    float opacity = 0.f;
+    bool round_cap = false;
+};
+
+inline Style from_theme(const Theme& theme) {
+    const float* f = theme.floats;
+    Style s;
+    s.dash = f[VROOM_FLOAT_PRICE_INDICATOR_DASH_PX];
+    s.gap = f[VROOM_FLOAT_PRICE_INDICATOR_GAP_PX];
+    s.width = f[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX];
+    s.opacity = f[VROOM_FLOAT_PRICE_INDICATOR_OPACITY];
+    s.round_cap = f[VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP] > 0.5f;
+    return s;
+}
+
+// Caps can't blend, so they switch halfway. Dash and gap are visible lengths
+// either way (price_indicator_dash::intervals), so on a thin line the switch
+// barely shows.
+inline Style lerp(const Style& a, const Style& b, float t) {
+    const auto mix = [t](float x, float y) { return x + (y - x) * t; };
+    Style s;
+    s.dash = mix(a.dash, b.dash);
+    s.gap = mix(a.gap, b.gap);
+    s.width = mix(a.width, b.width);
+    s.opacity = mix(a.opacity, b.opacity);
+    s.round_cap = t < 0.5f ? a.round_cap : b.round_cap;
+    return s;
+}
+
+// The look captured at morph fade `from_fade`, headed for the theme's at
+// `to_fade`. Equal fades mean settled: the theme draws as is.
+struct Morph {
+    Style from{};
+    float from_fade = 0.f;
+    float to_fade = 0.f;
+};
+
+inline float progress(const Morph& m, float fade) {
+    if (m.to_fade == m.from_fade) return 1.f;
+    return std::clamp((fade - m.from_fade) / (m.to_fade - m.from_fade), 0.f, 1.f);
+}
+
+inline Style current(const Morph& m, const Theme& theme, float fade) {
+    const Style to = from_theme(theme);
+    const float t = progress(m, fade);
+    return t >= 1.f ? to : lerp(m.from, to, t);
+}
+
+// Starts from whatever is on screen, so a switch that reverses mid-morph turns
+// around where the line stands instead of jumping back to a settled look.
+inline Morph begin(const Morph& m, const Theme& theme, float fade, float to_fade) {
+    return {current(m, theme, fade), fade, to_fade};
+}
+
+}  // namespace vroom::price_indicator_style

@@ -194,3 +194,99 @@ TEST_CASE("the dash pattern hangs off the line's right end") {
         CHECK(start - iv.on - width * 0.5f == doctest::Approx(kRight - 4.f));
     }
 }
+
+namespace {
+
+using vroom::price_indicator_style::Morph;
+using vroom::price_indicator_style::Style;
+
+vroom::Theme price_line_theme(float dash, float gap, float width,
+                              float opacity, bool round_cap) {
+    vroom::Theme t = vroom::default_theme();
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_DASH_PX] = dash;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_GAP_PX] = gap;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX] = width;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_OPACITY] = opacity;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP] = round_cap ? 1.f : 0.f;
+    return t;
+}
+
+}  // namespace
+
+TEST_CASE("a settled price-line blend draws the theme as is") {
+    const vroom::Theme theme = price_line_theme(4.f, 6.f, 1.f, 0.3f, false);
+    const Style s = vroom::price_indicator_style::current(Morph{}, theme, 0.7f);
+    CHECK(s.gap == doctest::Approx(6.f));
+    CHECK_FALSE(s.round_cap);
+}
+
+TEST_CASE("every number in the price-line style blends") {
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+
+    const vroom::Theme candles = vroom::default_theme();  // 2 / 2, 1px, opaque
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 3.f, 0.3f, true);
+    const Morph m = begin(Morph{}, candles, 0.f, 1.f);
+    const Style s = current(m, line, 0.25f);
+    CHECK(s.dash == doctest::Approx(2.5f));
+    CHECK(s.gap == doctest::Approx(3.5f));
+    CHECK(s.width == doctest::Approx(1.5f));
+    CHECK(s.opacity == doctest::Approx(0.825f));
+    CHECK_FALSE(s.round_cap);
+    CHECK(current(m, line, 0.5f).round_cap);
+}
+
+TEST_CASE("the price-line blend rides the morph fade either way") {
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+    using vroom::price_indicator_style::progress;
+
+    const vroom::Theme candles = vroom::default_theme();
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
+
+    // Candles → line: captured at fade 0, then the line theme lands.
+    const Morph to_line = begin(Morph{}, candles, 0.f, 1.f);
+    CHECK(current(to_line, line, 0.f).gap == doctest::Approx(2.f));
+    CHECK(current(to_line, line, 1.f).gap == doctest::Approx(8.f));
+
+    // Reversed at 0.6: the way back starts where the line stood.
+    const Style mid = current(to_line, line, 0.6f);
+    const Morph back = begin(to_line, line, 0.6f, 0.f);
+    CHECK(progress(back, 0.6f) == doctest::Approx(0.f));
+    CHECK(current(back, candles, 0.6f).gap == doctest::Approx(mid.gap));
+    CHECK(current(back, candles, 0.3f).gap ==
+          doctest::Approx(mid.gap + (2.f - mid.gap) * 0.5f));
+    CHECK(current(back, candles, 0.f).gap == doctest::Approx(2.f));
+
+    // Ending it (set_chart_type) draws the theme whatever the fade says.
+    Morph settled = back;
+    settled.from_fade = settled.to_fade;
+    CHECK(current(settled, candles, 0.6f).gap == doctest::Approx(2.f));
+}
+
+TEST_CASE("line to candles only closes the price line's gaps") {
+    using vroom::price_indicator_dash::intervals;
+    using vroom::price_indicator_dash::stroke_start;
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+    constexpr float kRight = 300.f;
+
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
+    const vroom::Theme candles = price_line_theme(4.f, 6.f, 1.f, 0.3f, false);
+    const Morph m = begin(Morph{}, line, 1.f, 0.f);
+    for (int i = 0; i <= 8; ++i) {
+        const float t = static_cast<float>(i) / 8.f;
+        const Style s = current(m, candles, 1.f - t);
+        const auto iv = intervals(s.dash, s.gap, s.width, s.round_cap);
+        const float cap = s.round_cap ? s.width * 0.5f : 0.f;
+        const float start = stroke_start(kRight, s.width, s.round_cap);
+        CAPTURE(t);
+        CHECK(s.round_cap == (t < 0.5f));
+        CHECK(s.opacity == doctest::Approx(0.3f));
+        // The first dash keeps its right end and its visible length through
+        // the cap switch, and the gap closes evenly from 8 to 6.
+        CHECK(start + cap == doctest::Approx(kRight));
+        CHECK(iv.on + 2.f * cap == doctest::Approx(4.f));
+        CHECK(iv.off - 2.f * cap == doctest::Approx(8.f - 2.f * t));
+    }
+}

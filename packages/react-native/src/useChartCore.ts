@@ -451,6 +451,9 @@ export function useChartCore(
     candles: Candle[];
     seriesKey?: string;
   } | null>(null);
+  // The chart type the theme was last pushed for, keyed by handle like
+  // prevDataRef, so the data effect can tell a candle↔line switch apart.
+  const themedTypeRef = useRef<{ handle: ChartHandle; line: boolean } | null>(null);
   const intervalMorphRaf = useRef<number | null>(null);
   const streamRaf = useRef<number | null>(null);
   // Where an in-flight stream shift is headed, so cancelling it can land there
@@ -910,6 +913,21 @@ export function useChartCore(
     }
     // chartType / the candle↔line morph is driven separately (VroomChart owns the
     // per-frame animation loop so it can update the picture SharedValue directly).
+    //
+    // A switch usually brings its own price-line style, so the core captures the
+    // outgoing one before the sweep below replaces it and blends between them on
+    // that morph's fade. A fresh handle, transitionMs=0 and reduced motion snap.
+    const line = chartType === 'line';
+    const themed = themedTypeRef.current;
+    if (
+      themed?.handle === h &&
+      themed.line !== line &&
+      animRef.current.ms > 0 &&
+      !animRef.current.reduceMotion
+    ) {
+      h.beginPriceIndicatorMorph(line ? 1 : 0);
+    }
+    themedTypeRef.current = { handle: h, line };
     if (theme) {
       applyTheme(h, theme);
     }

@@ -1434,6 +1434,9 @@ export type VroomChartCoreProps = {
    * Price-series render style. `'candles'` (default) draws candlesticks;
    * `'line'` draws a polyline through each candle's close (style it with
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
+   *
+   * On React Native, `priceIndicator*` theme keys that change in the same
+   * render as `chartType` blend across the switch instead of snapping.
    */
   chartType?: ChartType;
   /**

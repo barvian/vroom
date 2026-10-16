@@ -608,6 +608,13 @@ void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 // snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
 
+// Blends the current-price line's style (the PRICE_INDICATOR_* keys) into
+// whatever the theme sets next, over a candle↔line morph heading to
+// `mode` (0 = candles, 1 = line). Call it before pushing the new theme. The
+// blend rides set_morph's `fade` from where it stands now, and set_chart_type
+// ends it. Without this call a price-line theme change snaps.
+void vroom_chart_begin_price_indicator_morph(VroomChart* chart, int32_t mode);
+
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.
 void vroom_chart_get_visible_range(VroomChart* chart,

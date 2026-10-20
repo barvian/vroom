@@ -9,11 +9,11 @@ const { candles, isLoading } = useCandles(symbol);
 <VroomChart candles={candles} loading={isLoading} />;
 ```
 
-That's the whole API. When the data lands, the line **becomes** the chart in two
-steps: first it reshapes into the series' silhouette, resolving from the centre
-outward to pass through the close of every candle about to be drawn; then it
-fades out while those candles grow outward from it and their colour fades up. The chart resolves
-into place rather than cutting from one scene to another.
+That's the whole API. When the data lands, the line **becomes** the chart: it
+resolves onto the close of every candle, centre first, while the wave keeps
+moving underneath, and the candles grow out of it as their colour fades up. In
+line mode the line tints into the series line instead. The chart resolves into
+place rather than cutting from one scene to another.
 
 ## The contract
 
@@ -50,7 +50,7 @@ you asked for.
 While the line is up, the chart is inert: no gestures (pan, zoom, crosshair,
 drawing), no axis text, no current-price badge, and no indicator panes, even for
 indicators you have enabled. All of it comes back with the data, arriving with
-the candles in the second step of the hand-off.
+the candles during the hand-off.
 
 This is deliberate rather than incidental. The curve is generated and has no
 relationship to the asset, so anything that would let a user read a number off
@@ -75,14 +75,13 @@ See [Theming](./theming.md) for the rest of the palette.
 
 ## Timing and motion
 
-The line fades in over ~300ms, so a request that resolves from cache won't flash
-a placeholder on its way past.
+The line fades in over about half a second, so a request that resolves from
+cache won't flash a placeholder on its way past.
 
-The hand-off is driven by the same `transitionMs` / `transitionEasing` props as
-the interval switch, so it matches the rest of the chart's motion. Its two steps
-split that budget evenly — with the default `transitionMs={300}` the line
-reshapes over 150ms and the candles emerge over the next 150ms — so the whole
-hand-off costs what any other transition costs. `transitionMs={0}` snaps it.
+The hand-off runs on its own clock, Liveline's: a fast-out ease that settles in
+about 0.9s, with the line, the candles, the price badge and the axes all moving
+together rather than one after another. `transitionEasing` doesn't apply to it,
+but `transitionMs={0}` still snaps it.
 
 Under an OS reduced-motion preference the line still draws, but held still: no
 drift, no breathing, and no hand-off — the data just appears. On the web this is
@@ -94,5 +93,5 @@ The line matches [Liveline](https://github.com/benjitaylor/liveline)'s loading
 state: three sine waves summed, at frequencies that aren't multiples of one
 another and each drifting leftward at its own rate. A single sine reads as a
 test pattern — the repeat is too easy to find — while the sum keeps rearranging
-itself. It's drawn through the same monotone spline the line chart uses, so the
-first step of the hand-off has no renderer seam to hide.
+itself. It's drawn through the same monotone spline the line chart uses, so in
+line mode the hand-off has no renderer seam to hide.

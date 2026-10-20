@@ -4,4 +4,4 @@
 '@vroomchart/core-wasm': patch
 ---
 
-Match the `loading` line to Liveline's: its three-sine wave drifting leftward at 7% of the pane, breathing between 14% and 30% of `skeleton`, which now inherits `axisText` instead of `grid`. On hand-off the line resolves from the centre outward onto the candle closes, and the candles grow out of their closes.
+Match the `loading` line to Liveline's: its three-sine wave drifting leftward at 7% of the pane, breathing between 14% and 30% of `skeleton`, which now inherits `axisText` instead of `grid`, and fading out over its left 40px. On hand-off the moving line resolves centre-first onto the candle closes over about 0.9s on Liveline's ease, while the candles grow out of it; in line mode it becomes the series line.

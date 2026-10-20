@@ -6,8 +6,12 @@
 //   1. idle    — a travelling sine across the full width (see loading_wave.h)
 //   2. morph   — that sine, frozen, easing into a polyline through the
 //                close of every candle about to be drawn
-//   3. reveal  — the polyline holding still at those closes while it fades
-//                out and the candles grow outward from it
+//   3. reveal  — the still-moving sine resolving onto those closes, centre
+//                first, while the candles grow out of it and the line gives
+//                way to them (or, in line mode, becomes the series line)
+//
+// Stage 2 is the host-driven version of stage 3's line, kept for hosts that
+// still drive it; the bundled ones go straight from 1 to 3.
 //
 // Stages 1 and 2 run instead of the chart, so the axis text, price badge,
 // crosshair and indicator panes stay suppressed until the data is really
@@ -28,11 +32,8 @@ namespace vroom::loading_line {
 // the chart holds a capture (see VroomChart::begin_loading_morph).
 void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 
-// Stage 3, over the settled scene. `alpha` is the line's remaining opacity, so
-// the caller can ride it on the same clock as the candles' growth.
-void draw_fading(SkCanvas* canvas,
-                 const VroomChart& chart,
-                 const Layout& lay,
-                 float alpha);
+// Stage 3, over the scene, at `chart.loading_reveal`. In line mode this line
+// stands in for the series line, tip dot included, until the reveal lands.
+void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 
 }  // namespace vroom::loading_line

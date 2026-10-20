@@ -134,11 +134,15 @@ struct VroomChart {
     // Stage 2's progress, 0 = the frozen sine, 1 = through the candle closes.
     // Parked at 1 when no morph is running.
     float loading_line_t = 1.f;
-    // Set for stage 3, where the line rides `interval_morph_t` out on the same
-    // clock as the candles growing out of it. A flag rather than its own float
-    // because the two have to finish together to avoid a line left hanging over
-    // a settled chart.
+    // Set for stage 3, the hand-off proper. begin_frame eases `loading_reveal`
+    // 0 → 1 and derives `interval_morph_t` from it, so the line and the candles
+    // growing out of it run off one clock and can't finish apart.
     bool loading_line_revealing = false;
+    float loading_reveal = 1.f;
+    // Cleared once the host drives the interval morph itself — a live tick
+    // landing mid-reveal, say. The bars then follow the host's clock from where
+    // they are, and the line carries on resolving on its own.
+    bool loading_reveal_drives_morph = false;
 
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
@@ -641,10 +645,7 @@ struct VroomChart {
     // where the line is heading. Freezes the sine at its current phase and
     // pairs each vertex with the close of the candle that will occupy
     // that column, then hands `loading_line_t` to the host to drive 0 → 1.
-    //
-    // Freezing rather than letting the wave run underneath is deliberate — a
-    // moving source makes the morph read as two animations fighting instead of
-    // one shape resolving.
+    // Stage 3 doesn't freeze: it resolves the live wave, as Liveline does.
     void begin_loading_morph();
 
     // The visible slice and price bounds the hand-off aims at, as draw_chart
@@ -661,6 +662,11 @@ struct VroomChart {
     // slot lerp grows each bar outward from the line while candles::draw blends
     // its colour up out of nothing. Also releases `loading`, letting the axes,
     // price badge and panes come back.
+    //
+    // Runs on its own clock (see `loading_reveal`), Liveline's: the line
+    // resolves onto the closes while the wave keeps moving underneath and the
+    // bars grow at the same time, rather than one after the other. Called
+    // straight after begin_loading_morph, stage 2 is skipped entirely.
     void begin_loading_reveal();
 
     // True when the line tip's pulse ring is on screen and looping. Gated on

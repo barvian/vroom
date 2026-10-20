@@ -130,6 +130,9 @@ struct LinePoint {
     float x;       // fraction of the candle-area width
     float from_y;  // fraction of the pane height — the sine, frozen at capture
     float to_y;    // fraction of the price band — the candle's close
+    // Where `x` ends up. The same as `x` on a candle; a vertex padding out a
+    // span the data doesn't reach slides onto the nearest candle instead.
+    float to_x;
 };
 
 // How many captured slots still contribute to a frame — 0 once the morph is

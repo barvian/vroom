@@ -223,3 +223,116 @@ TEST_CASE("max_freq finds the tightest component") {
         CHECK(kHarmonics[i].freq <= vroom::loading_wave::max_freq());
     }
 }
+
+namespace {
+
+// Frames until `step` lands on 1, at `fps`.
+template <typename Step>
+int frames_to_land(Step step, float from, float fps) {
+    float v = from;
+    int frames = 0;
+    while (v < 1.f && frames < 10000) {
+        v = step(v, 1.f / fps);
+        ++frames;
+    }
+    return frames;
+}
+
+}  // namespace
+
+TEST_CASE("the reveal steps like Liveline's chartReveal lerp") {
+    // lerp(current, 1, CHART_REVEAL_SPEED_FWD) per 60fps frame, in Liveline's
+    // src/useLivelineEngine.ts, snapping within 0.005 of the target.
+    float r = 0.f;
+    float liveline = 0.f;
+    for (int i = 0; i < 40; ++i) {
+        r = vroom::loading_wave::reveal_step(r, 1.f / 60.f);
+        liveline += (1.f - liveline) * 0.09f;
+        if (1.f - liveline < 0.005f) liveline = 1.f;
+        CHECK(r == doctest::Approx(liveline).epsilon(0.001));
+    }
+}
+
+TEST_CASE("the reveal lands in under a second at any frame rate") {
+    const auto step = [](float v, float dt) {
+        return vroom::loading_wave::reveal_step(v, dt);
+    };
+    const float at60 = static_cast<float>(frames_to_land(step, 0.f, 60.f)) / 60.f;
+    CHECK(at60 > 0.8f);
+    CHECK(at60 < 1.f);
+    for (float fps : {30.f, 120.f}) {
+        const float s = static_cast<float>(frames_to_land(step, 0.f, fps)) / fps;
+        CHECK(s == doctest::Approx(at60).epsilon(0.05));
+    }
+}
+
+TEST_CASE("the line fades in like Liveline's loading alpha") {
+    const auto step = [](float v, float dt) {
+        return vroom::loading_wave::fade_in_step(v, dt);
+    };
+    float a = 0.f;
+    float liveline = 0.f;
+    for (int i = 0; i < 20; ++i) {
+        a = step(a, 1.f / 60.f);
+        liveline += (1.f - liveline) * 0.14f;
+        CHECK(a == doctest::Approx(liveline).epsilon(0.001));
+    }
+    // Quick enough that a cached response doesn't flash a placeholder.
+    const float s = static_cast<float>(frames_to_land(step, 0.f, 60.f)) / 60.f;
+    CHECK(s < 0.6f);
+}
+
+TEST_CASE("the line resolves from the centre outward") {
+    using vroom::loading_wave::resolve;
+    for (float x : {0.f, 0.2f, 0.5f, 0.8f, 1.f}) {
+        CHECK(resolve(0.f, x) == 0.f);
+        CHECK(resolve(1.f, x) == doctest::Approx(1.f));
+    }
+    for (float r : {0.2f, 0.5f, 0.8f}) {
+        CHECK(resolve(r, 0.5f) >= resolve(r, 0.75f));
+        CHECK(resolve(r, 0.75f) >= resolve(r, 1.f));
+        CHECK(resolve(r, 0.25f) == doctest::Approx(resolve(r, 0.75f)));
+    }
+    CHECK(resolve(0.5f, 0.5f) > resolve(0.5f, 0.75f));
+    CHECK(resolve(0.5f, 0.75f) > resolve(0.5f, 1.f));
+    // The centre lands well before the edges do.
+    CHECK(resolve(0.6f, 0.5f) == doctest::Approx(1.f));
+    CHECK(resolve(0.6f, 0.f) < 0.5f);
+}
+
+TEST_CASE("over candles the line gives way fast; in line mode it stays") {
+    using vroom::loading_wave::presence;
+    for (float r : {0.f, 0.3f, 0.7f, 1.f}) {
+        CHECK(presence(r, 1.f) == doctest::Approx(1.f));
+        CHECK(presence(r, 0.f) ==
+              doctest::Approx((1.f - r) * (1.f - r) * (1.f - r)));
+    }
+    CHECK(presence(0.5f, 0.f) < 0.15f);
+}
+
+TEST_CASE("the line brightens from its breath to full through the reveal") {
+    using vroom::loading_wave::reveal_alpha;
+    CHECK(reveal_alpha(0.f, 0.22f) == doctest::Approx(0.22f));
+    CHECK(reveal_alpha(1.f, 0.22f) == doctest::Approx(1.f));
+    CHECK(reveal_alpha(0.5f, 0.2f) == doctest::Approx(0.6f));
+}
+
+TEST_CASE("only a line-mode reveal tints the line, by a third of the way") {
+    using vroom::loading_wave::presence;
+    using vroom::loading_wave::tint;
+    for (float r : {0.f, 0.4f, 0.9f}) {
+        CHECK(tint(r, 0.f, presence(r, 0.f)) == 0.f);
+    }
+    CHECK(tint(0.f, 1.f, 1.f) == 0.f);
+    CHECK(tint(1.f / 6.f, 1.f, 1.f) == doctest::Approx(0.5f));
+    CHECK(tint(1.f / 3.f, 1.f, 1.f) == doctest::Approx(1.f));
+    CHECK(tint(0.8f, 1.f, 1.f) == doctest::Approx(1.f));
+}
+
+TEST_CASE("ramp is a clamped smoothstep") {
+    using vroom::loading_wave::ramp;
+    CHECK(ramp(0.3f, 0.4f, 0.8f) == 0.f);
+    CHECK(ramp(0.6f, 0.4f, 0.8f) == doctest::Approx(0.5f));
+    CHECK(ramp(0.9f, 0.4f, 0.8f) == 1.f);
+    CHECK(ramp(0.25f, 0.f, 1.f) == doctest::Approx(0.15625f));
+}

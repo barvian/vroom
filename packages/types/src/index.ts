@@ -1299,10 +1299,10 @@ export type VroomChartCoreProps = {
    * crosshair, the price badge, the axis labels and any indicator panes are all
    * suppressed for the duration.
    *
-   * When the data arrives the line doesn't cut away — it becomes the chart, in
-   * two steps that split `transitionMs`: it reshapes to pass through the
-   * close of every candle about to be drawn, then fades out while
-   * those candles grow outward from it and their color fades up.
+   * When the data arrives the line doesn't cut away — it becomes the chart,
+   * over about 0.9s: it resolves onto the close of every candle, centre first,
+   * while those candles grow out of it and their color fades up. In line mode
+   * it becomes the series line itself. `transitionMs={0}` snaps it.
    *
    * Passing `candles` alongside `loading` leaves the real chart up, so a
    * background refresh of an already-loaded series won't blank out. Default

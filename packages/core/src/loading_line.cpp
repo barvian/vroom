@@ -15,9 +15,12 @@
 #include <vector>
 
 #include "chart.h"
+#include "color_lerp.h"
 #include "curve.h"
+#include "gradient.h"
 #include "loading_wave.h"
 #include "theme.h"
+#include "tip_geometry.h"
 #include "viewport.h"
 
 namespace vroom::loading_line {
@@ -25,6 +28,8 @@ namespace vroom::loading_line {
 namespace {
 
 constexpr float kStrokeWidthPx = 2.f;
+
+float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
 // Multiplies into whatever alpha the resolved color already carries.
 SkColor faded(SkColor c, float a) {
@@ -49,7 +54,7 @@ SkColor stroke_color(const VroomChart& chart) {
 // morph these vertices *are* real price data, and an unconstrained curve would
 // overshoot a sharp reversal and bow outside the candle it is supposed to pass
 // through.
-SkPath spline(const std::vector<SkPoint>& pts) {
+SkPath spline(const std::vector<SkPoint>& pts, float tension = 1.f) {
     SkPathBuilder path;
     if (pts.empty()) return path.detach();
     path.moveTo(pts[0]);
@@ -78,24 +83,44 @@ SkPath spline(const std::vector<SkPoint>& pts) {
         }
         const curve::Controls c = curve::segment_controls(
             pts[i].fX, pts[i].fY, pts[i + 1].fX, pts[i + 1].fY,
-            tangent_at(i), tangent_at(i + 1), 1.f);
+            tangent_at(i), tangent_at(i + 1), tension);
         path.cubicTo(c.c1x, c.c1y, c.c2x, c.c2y, pts[i + 1].fX, pts[i + 1].fY);
     }
     return path.detach();
+}
+
+// `edge_alpha` is the opacity left at the plot's left edge, ramping up to full
+// across kEdgeFadePx. The chart itself doesn't fade its edge, so the reveal
+// lifts this to 1 on the way in.
+void stroke_path(SkCanvas* canvas,
+                 const SkPath& path,
+                 SkColor color,
+                 float width,
+                 float alpha,
+                 float edge_alpha) {
+    SkPaint p;
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(width);
+    p.setStrokeCap(SkPaint::kRound_Cap);
+    p.setStrokeJoin(SkPaint::kRound_Join);
+    p.setAntiAlias(true);
+    const SkColor c = faded(color, alpha);
+    if (edge_alpha < 1.f) {
+        const SkPoint ends[2] = {SkPoint::Make(0.f, 0.f),
+                                 SkPoint::Make(loading_wave::kEdgeFadePx, 0.f)};
+        const float a = static_cast<float>(SkColorGetA(c)) / 255.f;
+        p.setShader(linear_alpha_ramp(ends, c, a * edge_alpha, a));
+    } else {
+        p.setColor(c);
+    }
+    canvas->drawPath(path, p);
 }
 
 void stroke_path(SkCanvas* canvas,
                  const VroomChart& chart,
                  const SkPath& path,
                  float alpha) {
-    SkPaint p;
-    p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeWidth(kStrokeWidthPx);
-    p.setStrokeCap(SkPaint::kRound_Cap);
-    p.setStrokeJoin(SkPaint::kRound_Join);
-    p.setAntiAlias(true);
-    p.setColor(faded(stroke_color(chart), alpha));
-    canvas->drawPath(path, p);
+    stroke_path(canvas, path, stroke_color(chart), kStrokeWidthPx, alpha, 0.f);
 }
 
 // Pinned to phase 0 under reduced motion, which leaves a still curve at
@@ -118,7 +143,7 @@ SkPath idle_path(const VroomChart& chart, float area_w, float pane_h) {
     return spline(pts);
 }
 
-// Stages 2 and 3: the captured vertices, eased from the frozen curve toward the
+// Stage 2: the captured vertices, eased from the frozen curve toward the
 // candle closes. `t` of 1 is the shape the candles grow out of. The centre
 // resolves first and the edges last, as Liveline's does.
 SkPath morph_path(const VroomChart& chart,
@@ -131,11 +156,40 @@ SkPath morph_path(const VroomChart& chart,
     for (const LinePoint& pt : chart.loading_line) {
         const float from_y = pt.from_y * pane_h;
         const float to_y = y_at_fraction(lay, pt.to_y);
-        const float edge = std::fabs(pt.x - 0.5f) * 2.f;
-        const float local = std::clamp((t - edge * 0.4f) / 0.6f, 0.f, 1.f);
+        const float local = loading_wave::resolve(t, pt.x);
         pts.push_back(SkPoint{pt.x * area_w, from_y + (to_y - from_y) * local});
     }
     return spline(pts);
+}
+
+// Stage 3's vertices at `reveal`. Unlike stage 2 the source keeps moving: each
+// vertex leaves the sine as it is *now*, so the wave carries on until the data
+// has the line. The padding outside the data slides in onto the end candles,
+// so at 1 the line spans exactly the series. `from_t` is how far a host-driven
+// stage 2 already took the line, if one ran.
+std::vector<SkPoint> reveal_points(const VroomChart& chart,
+                                   const Layout& lay,
+                                   float area_w,
+                                   float pane_h,
+                                   float reveal,
+                                   float from_t) {
+    const float elapsed = phase(chart);
+    std::vector<SkPoint> pts;
+    pts.reserve(chart.loading_line.size());
+    for (const LinePoint& pt : chart.loading_line) {
+        const float xf = lerp(pt.x, pt.to_x, reveal);
+        const float to_y = y_at_fraction(lay, pt.to_y);
+        const float live_y =
+            loading_wave::y_frac(elapsed, std::clamp(xf, 0.f, 1.f)) * pane_h;
+        const float frozen_y = pt.from_y * pane_h;
+        const float stage2_y =
+            lerp(frozen_y, to_y, loading_wave::resolve(from_t, pt.x));
+        const float source_y = lerp(live_y, stage2_y, from_t);
+        pts.push_back(SkPoint{
+            xf * area_w,
+            lerp(source_y, to_y, loading_wave::resolve(reveal, xf))});
+    }
+    return pts;
 }
 
 }  // namespace
@@ -160,20 +214,53 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
                 b);
 }
 
-void draw_fading(SkCanvas* canvas,
-                 const VroomChart& chart,
-                 const Layout& lay,
-                 float alpha) {
-    if (!canvas || alpha <= 0.f) return;
-    if (chart.loading_line.empty()) return;
+void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
+    if (!canvas || chart.loading_line.empty()) return;
     const float area_w = candle_area_width(lay);
     const float pane_h = price_pane_bottom(lay);
     if (area_w <= 0.f || pane_h <= 0.f) return;
 
-    // Held at the morph's end state: the line has already reached the closes,
-    // and the candles are growing out of exactly these pixels.
-    stroke_path(canvas, chart, morph_path(chart, lay, area_w, pane_h, 1.f),
-                alpha * loading_wave::breath(phase(chart)));
+    const float r = chart.loading_reveal;
+    const float line_mode = std::clamp(chart.morph_fade, 0.f, 1.f);
+    const float lp = loading_wave::presence(r, line_mode);
+    if (lp <= 0.01f) return;
+
+    // Tinting toward the series is also what carries the stroke's width and
+    // curve over to the series line's, so the line it lands as is the one
+    // that replaces it.
+    const float tint = loading_wave::tint(r, line_mode, lp);
+    const auto& f = chart.theme.floats;
+    const float series_w = f[VROOM_FLOAT_LINE_WIDTH_PX];
+    const SkColor color = static_cast<SkColor>(
+        lerp_argb(stroke_color(chart), chart.theme.colors[VROOM_COLOR_LINE],
+                  tint));
+    const float alpha =
+        lp * loading_wave::reveal_alpha(r, loading_wave::breath(phase(chart)));
+
+    const auto pts = reveal_points(chart, lay, area_w, pane_h, r,
+                                   chart.loading_line_t);
+    stroke_path(canvas,
+                spline(pts, lerp(1.f, f[VROOM_FLOAT_LINE_TENSION], tint)),
+                color, lerp(kStrokeWidthPx, series_w, tint), alpha, r);
+
+    // The series line's tip dot, standing in for it with the rest of the
+    // series line. It waits until the line reads as data, then rides the
+    // line's end in.
+    if (pts.empty() || line_mode <= 0.f || r <= 0.3f ||
+        f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) {
+        return;
+    }
+    const float dot_alpha = std::clamp((lp - 0.5f) * 2.f, 0.f, 1.f) *
+                            (r - 0.3f) / 0.7f;
+    if (dot_alpha <= 0.f) return;
+    SkPaint dot;
+    dot.setAntiAlias(true);
+    dot.setColor(chart.theme.colors[VROOM_COLOR_LINE]);
+    dot.setAlphaf(dot.getAlphaf() * dot_alpha);
+    canvas->drawCircle(
+        pts.back(),
+        tip_geometry::of(series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]).dot_r,
+        dot);
 }
 
 }  // namespace vroom::loading_line

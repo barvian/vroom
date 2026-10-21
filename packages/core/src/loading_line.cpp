@@ -255,8 +255,12 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     const float alpha =
         lp * loading_wave::reveal_alpha(r, loading_wave::breath(phase(chart)));
 
+    // The line and its tip draw opaque into one layer that takes the alpha, so
+    // the dot doesn't stack its own over the line's end into a seam.
+    SkAutoCanvasRestore restore(canvas, false);
+    if (alpha < 1.f) canvas->saveLayerAlphaf(nullptr, alpha);
     stroke_path(canvas, spline(pts, frame.tension), color,
-                lerp(kStrokeWidthPx, series_w, frame.tint), alpha);
+                lerp(kStrokeWidthPx, series_w, frame.tint), 1.f);
 
     // The series line's tip dot, standing in for it with the rest of the
     // series line. It waits until the line reads as data, then rides the

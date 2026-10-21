@@ -106,6 +106,18 @@ inline float approach(float current, float target, float speed, float dt_s) {
     return current + (target - current) * factor;
 }
 
+// What the line's clocks advance by for a frame `since_s` after the previous
+// one. Real time, unlike the chart's shared dt, which counts any frame over
+// 0.1s as a nominal 1/60s: a host thread busy mounting a screen can space
+// frames well past that, and the line would crawl in for seconds. Capped so a
+// resume from background lands the clocks rather than overflowing them.
+constexpr float kMaxFrameSeconds = 1.f;
+inline float frame_seconds(float since_s) {
+    return since_s < 0.f ? 0.f
+                         : (since_s > kMaxFrameSeconds ? kMaxFrameSeconds
+                                                       : since_s);
+}
+
 // The line's entrance from nothing: Liveline's loading alpha, which snaps the
 // last percent rather than creeping toward 1 forever.
 constexpr float kFadeInSpeed = 0.14f;

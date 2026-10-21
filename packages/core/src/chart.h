@@ -126,11 +126,19 @@ struct VroomChart {
     // Fades the line in on arrival, so a chart that resolves instantly from
     // cache doesn't flash a placeholder.
     float loading_fade_in = 0.f;
+    // The fade-in's and the reveal's own frame clock (see
+    // loading_wave::frame_seconds). Restarts from zero with the line rather
+    // than spanning an idle gap before it.
+    std::chrono::steady_clock::time_point loading_tick{};
+    bool loading_ticking = false;
 
     // The line's morph vertices, left to right, captured when the data lands.
     // Empty means stage 1 — nothing to morph toward yet — which is what
-    // loading_line::draw switches on.
+    // loading_line::draw switches on. Stage 3 re-aims every frame instead (see
+    // aim_loading_line).
     std::vector<vroom::LinePoint> loading_line;
+    // The wave's phase when stage 2 froze it.
+    float loading_frozen_s = 0.f;
     // Stage 2's progress, 0 = the frozen sine, 1 = through the candle closes.
     // Parked at 1 when no morph is running.
     float loading_line_t = 1.f;
@@ -656,6 +664,11 @@ struct VroomChart {
         vroom::PriceBounds bounds{};
     };
     LoadingTarget loading_target() const;
+
+    // The line's vertices aimed at the candles as they're framed right now,
+    // each starting from the wave at phase `elapsed`. Empty with nothing to
+    // aim at.
+    std::vector<vroom::LinePoint> aim_loading_line(float elapsed) const;
 
     // Stage 3. Captures every candle collapsed onto its own close at
     // zero alpha and hands it to the interval-morph machinery, so the existing

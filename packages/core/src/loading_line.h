@@ -36,4 +36,11 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 // stands in for the series line, tip dot included, until the reveal lands.
 void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 
+// The line-mode wash under stage 3's line, standing in for the series' own so
+// the fill sits under the line as it is rather than where it's heading.
+// Drawn where the series fill would be, beneath the candles and the line.
+void draw_reveal_fill(SkCanvas* canvas,
+                      const VroomChart& chart,
+                      const Layout& lay);
+
 }  // namespace vroom::loading_line

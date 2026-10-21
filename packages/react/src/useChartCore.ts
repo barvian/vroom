@@ -943,9 +943,12 @@ export function useChartCore(
         } else if (transition === 'reset') {
           h.resetView();
         }
-        // After setCandles and the framing above, so the line aims at — and the
-        // candles grow from — the geometry each bar will actually occupy.
-        if (handOff) startLoadingHandoff(h);
+        // After setCandles and the framing, explicit range included, so the
+        // candles grow from the slots each bar will actually occupy.
+        if (handOff) {
+          if (explicit) h.setVisibleRange(startMs, endMs);
+          startLoadingHandoff(h);
+        }
         prevDataRef.current = { handle: h, candles, seriesKey };
       }
     }

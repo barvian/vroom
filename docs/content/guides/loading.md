@@ -75,8 +75,10 @@ See [Theming](./theming.md) for the rest of the palette.
 
 ## Timing and motion
 
-The line fades in over about half a second, so a request that resolves from
-cache won't flash a placeholder on its way past.
+A chart that opens loading shows the line straight away, as Liveline does; one
+that was already showing something fades it in over about half a second. Data
+that lands before the chart has even been laid out, as from a cache, still
+hands off from the line rather than appearing outright.
 
 The hand-off runs on its own clock, Liveline's: a fast-out ease that settles in
 about 0.9s, with the line, the candles, the price badge and the axes all moving

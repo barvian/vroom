@@ -107,11 +107,12 @@ inline float approach(float current, float target, float speed, float dt_s) {
 }
 
 // What the line's clocks advance by for a frame `since_s` after the previous
-// one. Real time, unlike the chart's shared dt, which counts any frame over
-// 0.1s as a nominal 1/60s: a host thread busy mounting a screen can space
-// frames well past that, and the line would crawl in for seconds. Capped so a
-// resume from background lands the clocks rather than overflowing them.
-constexpr float kMaxFrameSeconds = 1.f;
+// one. Real time up to Liveline's 50ms cap (its MAX_DELTA_MS), unlike the
+// chart's shared dt, which counts any frame over 0.1s as a nominal 1/60s and
+// left the line crawling in for seconds on a host thread busy mounting a
+// screen. The cap is what keeps the hand-off a motion rather than a cut there:
+// however far apart the frames, it takes about 19 of them to land.
+constexpr float kMaxFrameSeconds = 0.05f;
 inline float frame_seconds(float since_s) {
     return since_s < 0.f ? 0.f
                          : (since_s > kMaxFrameSeconds ? kMaxFrameSeconds

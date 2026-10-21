@@ -761,6 +761,14 @@ export function useChartCore(
   // decides if the next data push is a hand-off. Distinct from `showLoadingLine`:
   // that is this render's intent, this is what's on screen.
   const lineUpRef = useRef(false);
+  // Set when the line was asked for before the core could draw it (WASM still
+  // loading, or no size yet). Data from a cache can land first, and the
+  // hand-off should still play rather than the series appearing as if nothing
+  // had been loading.
+  const lineMissedRef = useRef(false);
+  if (showLoadingLine && (!ready || width <= 0 || height <= 0)) {
+    lineMissedRef.current = true;
+  }
 
   // Push everything into the core whenever data/size/config changes, then paint.
   useEffect(() => {
@@ -773,7 +781,9 @@ export function useChartCore(
     // Ichimoku's leading spans, so it has to already know they're coming.
     h.setIchimoku(ichimokuToSpec(ichimoku));
 
-    if (showLoadingLine) {
+    const lineMissed = lineMissedRef.current && candles.length > 0;
+    lineMissedRef.current = false;
+    if (showLoadingLine || lineMissed) {
       // Clear the core's buffer, which the `candles.length > 0` gate below
       // otherwise never does: pushing an empty array is treated as "hold the
       // last frame" everywhere else, so a chart switching assets would still be

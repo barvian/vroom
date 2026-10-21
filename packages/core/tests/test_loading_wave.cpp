@@ -282,25 +282,29 @@ TEST_CASE("the line fades in like Liveline's loading alpha") {
     CHECK(s < 0.6f);
 }
 
-TEST_CASE("a slow host thread doesn't stretch the hand-off") {
+TEST_CASE("a slow host thread neither cuts nor stretches the hand-off") {
     using vroom::loading_wave::frame_seconds;
     using vroom::loading_wave::reveal_step;
-    using vroom::loading_wave::fade_in_step;
-    // Frames 150ms apart, as on a screen still mounting around the chart.
-    const float gap = 0.15f;
-    const auto wall_seconds_to_land = [&](auto step, float dt) {
+    const auto frames_to_land_at = [](float dt) {
         float v = 0.f;
         int frames = 0;
         while (v < 1.f && frames < 10000) {
-            v = step(v, dt);
+            v = reveal_step(v, dt);
             ++frames;
         }
-        return static_cast<float>(frames) * gap;
+        return frames;
     };
-    CHECK(wall_seconds_to_land(reveal_step, frame_seconds(gap)) < 1.2f);
-    CHECK(wall_seconds_to_land(fade_in_step, frame_seconds(gap)) < 0.8f);
-    // What counting each slow frame as a nominal 1/60s did instead.
-    CHECK(wall_seconds_to_land(reveal_step, 1.f / 60.f) > 5.f);
+    // Frames 150ms apart, as on a screen still mounting around the chart.
+    const float gap = 0.15f;
+    const int slow = frames_to_land_at(frame_seconds(gap));
+    // Enough drawn frames to read as motion rather than a cut...
+    CHECK(slow >= 15);
+    // ...without the crawl of counting each one as a nominal 1/60s.
+    CHECK(static_cast<float>(slow) * gap < 4.f);
+    CHECK(static_cast<float>(frames_to_land_at(1.f / 60.f)) * gap > 8.f);
+    // At a steady 60fps the cap never engages.
+    CHECK(frames_to_land_at(frame_seconds(1.f / 60.f)) ==
+          frames_to_land_at(1.f / 60.f));
 }
 
 TEST_CASE("the line's frame clock keeps real time within bounds") {
@@ -309,8 +313,10 @@ TEST_CASE("the line's frame clock keeps real time within bounds") {
     CHECK(frame_seconds(0.f) == 0.f);
     CHECK(frame_seconds(-0.01f) == 0.f);
     CHECK(frame_seconds(1.f / 60.f) == doctest::Approx(1.f / 60.f));
-    CHECK(frame_seconds(0.25f) == doctest::Approx(0.25f));
+    CHECK(frame_seconds(0.04f) == doctest::Approx(0.04f));
+    CHECK(frame_seconds(0.25f) == kMaxFrameSeconds);
     CHECK(frame_seconds(30.f) == kMaxFrameSeconds);
+    CHECK(kMaxFrameSeconds == doctest::Approx(0.05f));
 }
 
 TEST_CASE("the line resolves from the centre outward") {

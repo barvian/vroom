@@ -1211,7 +1211,9 @@ void VroomChart::set_loading(bool on, bool animate) {
     }
 
     loading_elapsed_s = 0.f;
-    loading_fade_in = 0.f;
+    // Liveline's: a chart that opens loading shows the line outright. The
+    // fade is for a chart that was already showing something.
+    loading_fade_in = anim_started ? 0.f : 1.f;
     loading_ticking = false;
     mark_dirty();
 }

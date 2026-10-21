@@ -1145,12 +1145,16 @@ void VroomChart::begin_frame() {
         }
     }
 
-    // The loading line's own dt (see loading_wave::frame_seconds).
+    // The loading line's own dt (see loading_wave::frame_seconds). The wave
+    // travels by the uncapped time instead, as Liveline's reads the clock, so a
+    // host too busy to draw every frame still shows it moving at its speed.
     float loading_dt = 0.f;
+    float loading_since = 0.f;
     if (loading || loading_line_revealing) {
         if (loading_ticking) {
-            loading_dt = vroom::loading_wave::frame_seconds(
-                std::chrono::duration<float>(now - loading_tick).count());
+            loading_since =
+                std::chrono::duration<float>(now - loading_tick).count();
+            loading_dt = vroom::loading_wave::frame_seconds(loading_since);
         }
         loading_tick = now;
         loading_ticking = true;
@@ -1163,7 +1167,7 @@ void VroomChart::begin_frame() {
         // sine held when the data landed, and advancing it underneath would
         // drag the morph's own start point around.
         if (loading_animate && loading_line.empty()) {
-            loading_elapsed_s = std::fmod(loading_elapsed_s + loading_dt,
+            loading_elapsed_s = std::fmod(loading_elapsed_s + loading_since,
                                           vroom::loading_wave::kPeriodSeconds);
         }
         // Ramps regardless of `loading_animate`: reduced motion suppresses the
@@ -1177,7 +1181,7 @@ void VroomChart::begin_frame() {
         // The wave keeps travelling under the reveal, so the line leaves the
         // curve the user was watching rather than a still of it.
         if (loading_animate) {
-            loading_elapsed_s = std::fmod(loading_elapsed_s + loading_dt,
+            loading_elapsed_s = std::fmod(loading_elapsed_s + loading_since,
                                           vroom::loading_wave::kPeriodSeconds);
         }
         loading_reveal =

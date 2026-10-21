@@ -16,7 +16,7 @@ Peer dependencies (install if you don't already have them):
 npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated react-native-worklets
 ```
 
-Requires `@shopify/react-native-skia` ≥ 2.11.0 and `react-native-worklets` ≥ 0.7.0.
+Requires `@shopify/react-native-skia` ≥ 2.11.0, or `react-native-skia` ≥ 2.15.0 (the same library under its new name), and `react-native-worklets` ≥ 0.7.0. Skia 3.x is Graphite-only and needs Android `minSdkVersion` 26. Install exactly one of the two Skia packages; installing both registers two copies of the native module.
 
 ### Usage
 
@@ -71,7 +71,8 @@ platforms are consumed through the React Native package above.
 
 - `packages/core/` — platform-agnostic C++ engine (Skia-based). Public C facade.
 - `packages/react-native/` — RN npm package. JSI bridge + iOS/Android shims around the core.
-- `examples/test-bench/` — Expo dev-client test bench app.
+- `examples/test-bench/` — Expo dev-client test bench app (React Native Skia v2).
+- `examples/test-bench-v3/` — the same app on React Native Skia v3 (`pnpm start:v3`, `pnpm rebuild:ios:v3`).
 - `docs/` — Docusaurus documentation site.
 - `third_party/skia/` — fetched prebuilts (gitignored).
 

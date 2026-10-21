@@ -195,9 +195,6 @@ inline float price_slide(float reveal, float line_mode) {
 // Liveline starts the live dot's pulse once the reveal passes this.
 constexpr float kPulseFrom = 0.6f;
 
-// Liveline fades the plot's left edge out over this many points.
-constexpr float kEdgeFadePx = 40.f;
-
 // The tightest component in the table above.
 constexpr float max_freq() {
     float m = 0.f;

@@ -91,30 +91,18 @@ SkPath spline(const std::vector<SkPoint>& pts, float tension = 1.f) {
     return path.detach();
 }
 
-// `edge_alpha` is the opacity left at the plot's left edge, ramping up to full
-// across kEdgeFadePx. The chart itself doesn't fade its edge, so the reveal
-// lifts this to 1 on the way in.
 void stroke_path(SkCanvas* canvas,
                  const SkPath& path,
                  SkColor color,
                  float width,
-                 float alpha,
-                 float edge_alpha) {
+                 float alpha) {
     SkPaint p;
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
     p.setStrokeCap(SkPaint::kRound_Cap);
     p.setStrokeJoin(SkPaint::kRound_Join);
     p.setAntiAlias(true);
-    const SkColor c = faded(color, alpha);
-    if (edge_alpha < 1.f) {
-        const SkPoint ends[2] = {SkPoint::Make(0.f, 0.f),
-                                 SkPoint::Make(loading_wave::kEdgeFadePx, 0.f)};
-        const float a = static_cast<float>(SkColorGetA(c)) / 255.f;
-        p.setShader(linear_alpha_ramp(ends, c, a * edge_alpha, a));
-    } else {
-        p.setColor(c);
-    }
+    p.setColor(faded(color, alpha));
     canvas->drawPath(path, p);
 }
 
@@ -122,7 +110,7 @@ void stroke_path(SkCanvas* canvas,
                  const VroomChart& chart,
                  const SkPath& path,
                  float alpha) {
-    stroke_path(canvas, path, stroke_color(chart), kStrokeWidthPx, alpha, 0.f);
+    stroke_path(canvas, path, stroke_color(chart), kStrokeWidthPx, alpha);
 }
 
 // Pinned to phase 0 under reduced motion, which leaves a still curve at
@@ -268,7 +256,7 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
         lp * loading_wave::reveal_alpha(r, loading_wave::breath(phase(chart)));
 
     stroke_path(canvas, spline(pts, frame.tension), color,
-                lerp(kStrokeWidthPx, series_w, frame.tint), alpha, r);
+                lerp(kStrokeWidthPx, series_w, frame.tint), alpha);
 
     // The series line's tip dot, standing in for it with the rest of the
     // series line. It waits until the line reads as data, then rides the

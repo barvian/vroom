@@ -173,6 +173,28 @@ inline float tint(float reveal, float line_mode, float presence_now) {
     return t * line_mode / presence_now;
 }
 
+// The gridlines and axis labels through the hand-off: Liveline's ramp for a
+// candle series, which is also the pipeline it draws one as a line in.
+inline float axis_alpha(float reveal) { return ramp(reveal, 0.25f, 0.6f); }
+
+// The current-price indicator's opacity through the hand-off. As a line it's
+// Liveline's badge, in by halfway; over candles, its close-price line.
+inline float price_alpha(float reveal, float line_mode) {
+    float badge = (reveal - 0.25f) / 0.25f;
+    badge = badge < 0.f ? 0.f : (badge > 1.f ? 1.f : badge);
+    return badge * line_mode + ramp(reveal, 0.4f, 0.8f) * (1.f - line_mode);
+}
+
+// How much of the way from the pane's centre, where the line starts, to the
+// price the indicator has still to travel. Liveline slides its badge and dash
+// in from there as a line; over candles they sit on the close throughout.
+inline float price_slide(float reveal, float line_mode) {
+    return (1.f - reveal) * line_mode;
+}
+
+// Liveline starts the live dot's pulse once the reveal passes this.
+constexpr float kPulseFrom = 0.6f;
+
 // Liveline fades the plot's left edge out over this many points.
 constexpr float kEdgeFadePx = 40.f;
 

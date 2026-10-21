@@ -58,6 +58,7 @@ struct IntervalPhase {
 };
 
 // Derived purely from the chart's morph state, so callers can ask for it freely.
+// A loading reveal uses it too, incoming only, with the reveal's axis ramp.
 IntervalPhase interval_phase(const VroomChart& chart);
 
 // Y-axis (price) -----------------------------------------------------------

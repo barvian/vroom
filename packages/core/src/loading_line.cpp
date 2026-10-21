@@ -22,6 +22,7 @@
 #include "loading_wave.h"
 #include "theme.h"
 #include "tip_geometry.h"
+#include "tip_pulse.h"
 #include "viewport.h"
 
 namespace vroom::loading_line {
@@ -279,14 +280,29 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     const float dot_alpha = std::clamp((lp - 0.5f) * 2.f, 0.f, 1.f) *
                             (r - 0.3f) / 0.7f;
     if (dot_alpha <= 0.f) return;
+    const float dot_r =
+        tip_geometry::of(series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]).dot_r;
+    // The ring joins partway, as Liveline's does, on the phase the series
+    // tip's will carry on from.
+    if (r > loading_wave::kPulseFrom && f[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f) {
+        const tip_pulse::Frame ring_f = tip_pulse::at(
+            chart.tip_pulse_elapsed_s / tip_pulse::kPeriodSeconds,
+            f[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY]);
+        if (ring_f.alpha > 0.f) {
+            SkPaint ring;
+            ring.setAntiAlias(true);
+            ring.setStyle(SkPaint::kStroke_Style);
+            ring.setColor(chart.theme.colors[VROOM_COLOR_LINE]);
+            ring.setAlphaf(ring.getAlphaf() * ring_f.alpha * dot_alpha);
+            ring.setStrokeWidth(dot_r * tip_pulse::kWidthMul);
+            canvas->drawCircle(pts.back(), dot_r * ring_f.radius_mul, ring);
+        }
+    }
     SkPaint dot;
     dot.setAntiAlias(true);
     dot.setColor(chart.theme.colors[VROOM_COLOR_LINE]);
     dot.setAlphaf(dot.getAlphaf() * dot_alpha);
-    canvas->drawCircle(
-        pts.back(),
-        tip_geometry::of(series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]).dot_r,
-        dot);
+    canvas->drawCircle(pts.back(), dot_r, dot);
 }
 
 void draw_reveal_fill(SkCanvas* canvas,

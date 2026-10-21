@@ -77,12 +77,14 @@ See [Theming](./theming.md) for the rest of the palette.
 
 A chart that opens loading shows the line straight away, as Liveline does; one
 that was already showing something fades it in over about half a second. Data
-that lands before the chart has even been laid out, as from a cache, still
-hands off from the line rather than appearing outright.
+that lands before the chart has been laid out still hands off from the line if
+`loading` was set with no candles; a series that's there from the first render,
+as from a cache, just appears.
 
 The hand-off runs on its own clock, Liveline's: a fast-out ease that settles in
-about 0.9s, with the line, the candles, the price badge and the axes all moving
-together rather than one after another. `transitionEasing` doesn't apply to it,
+about 0.9s, which the line, the candles, the price badge and the axes all read,
+staggered the way Liveline staggers them. As a line, the badge rides in from the
+centre with the line's tip, and the pulse ring joins partway. `transitionEasing` doesn't apply to it,
 but `transitionMs={0}` still snaps it.
 
 Under an OS reduced-motion preference the line still draws, but held still: no

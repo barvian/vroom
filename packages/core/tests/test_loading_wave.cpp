@@ -373,3 +373,28 @@ TEST_CASE("ramp is a clamped smoothstep") {
     CHECK(ramp(0.9f, 0.4f, 0.8f) == 1.f);
     CHECK(ramp(0.25f, 0.f, 1.f) == doctest::Approx(0.15625f));
 }
+
+TEST_CASE("the axes come up on Liveline's grid ramp through the reveal") {
+    using vroom::loading_wave::axis_alpha;
+    CHECK(axis_alpha(0.25f) == 0.f);
+    CHECK(axis_alpha(0.425f) == doctest::Approx(0.5f));
+    CHECK(axis_alpha(0.6f) == 1.f);
+}
+
+TEST_CASE("the price indicator follows Liveline's badge as a line, its close line over candles") {
+    using vroom::loading_wave::price_alpha;
+    using vroom::loading_wave::price_slide;
+    // As a line: nothing until a quarter in, fully up by halfway.
+    CHECK(price_alpha(0.25f, 1.f) == 0.f);
+    CHECK(price_alpha(0.375f, 1.f) == doctest::Approx(0.5f));
+    CHECK(price_alpha(0.5f, 1.f) == 1.f);
+    // Over candles: the close line's 0.4 to 0.8.
+    CHECK(price_alpha(0.4f, 0.f) == 0.f);
+    CHECK(price_alpha(0.6f, 0.f) == doctest::Approx(0.5f));
+    CHECK(price_alpha(0.8f, 0.f) == 1.f);
+    // Only a line slides in from the centre, and it lands with the reveal.
+    CHECK(price_slide(0.f, 1.f) == 1.f);
+    CHECK(price_slide(0.75f, 1.f) == doctest::Approx(0.25f));
+    CHECK(price_slide(1.f, 1.f) == 0.f);
+    CHECK(price_slide(0.f, 0.f) == 0.f);
+}

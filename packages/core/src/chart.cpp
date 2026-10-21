@@ -1024,16 +1024,25 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             (price_anchor.use_morph && morph_src && morph_n_draw > 0)
                 ? morph_src
                 : nullptr;
-        // Through a loading reveal it comes in as the line's tip lands on the
-        // last close (see loading_wave::resolve), so the dash never marks a
-        // price the line hasn't reached.
+        // Through a loading reveal it comes in on Liveline's timing, and as a
+        // line rides in from the centre with the line's tip.
         const float price_alpha =
             loading_line_revealing
-                ? vroom::loading_wave::ramp(loading_reveal, 0.4f, 1.f)
+                ? vroom::loading_wave::price_alpha(loading_reveal, morph_fade)
                 : 1.f;
+        const float price_slide =
+            loading_line_revealing
+                ? vroom::loading_wave::price_slide(loading_reveal, morph_fade)
+                : 0.f;
         if (price_alpha < 1.f) canvas->saveLayerAlphaf(nullptr, price_alpha);
+        if (price_slide > 0.f) {
+            const float y = vroom::price_to_y(lay, bounds, candles.back().close);
+            canvas->save();
+            canvas->translate(0.f, (candle_area_h * 0.5f - y) * price_slide);
+        }
         vroom::price_indicator::draw(canvas, *this, lay, bounds, candle_right,
                                      candle_area_h, price_from, morph_t);
+        if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();
 
         // 7.54. Fair Value Gap labels — the boxes themselves are back behind
@@ -1350,12 +1359,10 @@ void VroomChart::begin_loading_reveal() {
     // pairing column to column is what makes the line *become* the data instead
     // of one scene dissolving into another.
     interval_morph_fade = false;
-    // Keeps the axes out of the interval envelope (see labels::interval_phase),
-    // which is what the flag actually selects. A timeframe switch runs the
-    // outgoing ticks out and the new ones in; here there are no outgoing ticks
-    // — stages 1 and 2 draw no axis at all — so that envelope would hold the
-    // real labels back for the first half of the reveal. Per-label fades bring
-    // them up from nothing instead, in step with the bars.
+    // Not a timeframe switch: stages 1 and 2 draw no axis, so there are no
+    // outgoing ticks to run out, and the y-range eases under the reveal as it
+    // does under a live update. The axes come up on the reveal's own clock
+    // instead (see labels::interval_phase).
     morph_is_stream = true;
     loading_line_revealing = true;
     loading_reveal = 0.f;

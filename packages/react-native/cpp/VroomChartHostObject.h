@@ -11,6 +11,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 
 #include <jsi/jsi.h>
 
@@ -30,7 +31,18 @@ class ChartHostObject : public facebook::jsi::HostObject {
       facebook::jsi::Runtime& runtime) override;
 
  private:
+  // Wraps a method so it holds mutex_ for the whole call.
+  template <typename Fn>
+  facebook::jsi::Function lockedFunction(
+      facebook::jsi::Runtime& runtime,
+      const facebook::jsi::PropNameID& name,
+      unsigned int paramCount,
+      Fn fn);
+
   VroomChart* chart_ = nullptr;
+  // VroomChart calls in from both the JS and the UI runtime, and the core
+  // isn't thread-safe.
+  std::mutex mutex_;
 };
 
 }  // namespace vroom

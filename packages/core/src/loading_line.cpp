@@ -266,15 +266,8 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     stroke_path(canvas, spline(pts, frame.tension), color, series_w, 1.f);
 
     // The series line's tip dot, standing in for it with the rest of the
-    // series line. It waits until the line reads as data, then rides the
-    // line's end in.
-    if (pts.empty() || line_mode <= 0.f || r <= 0.3f ||
-        f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) {
-        return;
-    }
-    const float dot_alpha = std::clamp((lp - 0.5f) * 2.f, 0.f, 1.f) *
-                            (r - 0.3f) / 0.7f;
-    if (dot_alpha <= 0.f) return;
+    // series line: in the line's color, fading only with the layer.
+    if (line_mode <= 0.f || f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) return;
     const float dot_r =
         tip_geometry::of(series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]).dot_r;
     // The ring joins partway, as Liveline's does, on the phase the series
@@ -287,16 +280,15 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
             SkPaint ring;
             ring.setAntiAlias(true);
             ring.setStyle(SkPaint::kStroke_Style);
-            ring.setColor(chart.theme.colors[VROOM_COLOR_LINE]);
-            ring.setAlphaf(ring.getAlphaf() * ring_f.alpha * dot_alpha);
+            ring.setColor(color);
+            ring.setAlphaf(ring.getAlphaf() * ring_f.alpha);
             ring.setStrokeWidth(dot_r * tip_pulse::kWidthMul);
             canvas->drawCircle(pts.back(), dot_r * ring_f.radius_mul, ring);
         }
     }
     SkPaint dot;
     dot.setAntiAlias(true);
-    dot.setColor(chart.theme.colors[VROOM_COLOR_LINE]);
-    dot.setAlphaf(dot.getAlphaf() * dot_alpha);
+    dot.setColor(color);
     canvas->drawCircle(pts.back(), dot_r, dot);
 }
 

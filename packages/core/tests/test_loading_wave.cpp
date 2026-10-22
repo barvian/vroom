@@ -34,8 +34,9 @@ TEST_CASE("the weights sum to one so the offset stays in -1..1") {
 }
 
 TEST_CASE("no component is a harmonic of another") {
-    // The whole point of three sines is that they never lock into one repeating
-    // shape. Integer frequency ratios would do exactly that, so guard them.
+    // The whole point of summing sines is that they never lock into one
+    // repeating shape. Integer frequency ratios would do exactly that, so
+    // guard them.
     for (int i = 0; i < kHarmonicCount; ++i) {
         for (int j = i + 1; j < kHarmonicCount; ++j) {
             const float ratio = kHarmonics[j].freq / kHarmonics[i].freq;
@@ -64,17 +65,17 @@ TEST_CASE("the curve travels toward the left") {
     CHECK(x1 < x0);
 }
 
-TEST_CASE("the curve and breath match Liveline's loading line") {
-    // loadingY and loadingBreath in Liveline's src/draw/loadingShape.ts.
+TEST_CASE("the curve and breath hold their reference values") {
+    // The wave at a scroll of 1 rad/s, and a breath of
+    // 0.22 + 0.08 * sin(t / 1.2s * pi).
     for (float t : {0.f, 0.7f, 3.1f, 11.f}) {
         for (int xi = 0; xi <= 20; ++xi) {
             const float x = static_cast<float>(xi) / 20.f;
-            const float liveline = std::sin(x * 9.4f + t) * 0.55f +
-                                   std::sin(x * 15.7f + t * 1.3f) * 0.3f +
-                                   std::sin(x * 4.2f + t * 0.7f) * 0.15f;
-            CHECK(at(t, x) == doctest::Approx(liveline).epsilon(0.001));
+            const float ref = std::sin(x * 6.3f + t) * 0.65f +
+                              std::sin(x * 11.2f + t * 1.3f) * 0.35f;
+            CHECK(at(t, x) == doctest::Approx(ref).epsilon(0.001));
             CHECK(y_frac(t, x) ==
-                  doctest::Approx(0.5f + 0.07f * liveline).epsilon(0.001));
+                  doctest::Approx(0.5f + 0.07f * ref).epsilon(0.001));
         }
     }
     CHECK(breath(0.f) == doctest::Approx(0.22f));

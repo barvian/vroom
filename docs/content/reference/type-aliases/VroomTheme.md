@@ -343,7 +343,7 @@ optional lineWidth?: number;
 
 Source: [types/src/index.ts:156](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L156)
 
-Line-chart-mode polyline stroke width in px. Defaults to 1.5.
+Line-chart-mode polyline stroke width in px, also the loading line's. Defaults to 1.5.
 
 ---
 

@@ -29,7 +29,11 @@ namespace vroom::loading_line {
 
 namespace {
 
-constexpr float kStrokeWidthPx = 2.f;
+// The series line's width, so the placeholder has the weight of the line that
+// replaces it.
+float stroke_width(const VroomChart& chart) {
+    return chart.theme.floats[VROOM_FLOAT_LINE_WIDTH_PX];
+}
 
 float lerp(float a, float b, float t) { return a + (b - a) * t; }
 
@@ -110,7 +114,7 @@ void stroke_path(SkCanvas* canvas,
                  const VroomChart& chart,
                  const SkPath& path,
                  float alpha) {
-    stroke_path(canvas, path, stroke_color(chart), kStrokeWidthPx, alpha);
+    stroke_path(canvas, path, stroke_color(chart), stroke_width(chart), alpha);
 }
 
 // Pinned to phase 0 under reduced motion, which leaves a still curve at
@@ -259,8 +263,7 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     // the dot doesn't stack its own over the line's end into a seam.
     SkAutoCanvasRestore restore(canvas, false);
     if (alpha < 1.f) canvas->saveLayerAlphaf(nullptr, alpha);
-    stroke_path(canvas, spline(pts, frame.tension), color,
-                lerp(kStrokeWidthPx, series_w, frame.tint), 1.f);
+    stroke_path(canvas, spline(pts, frame.tension), color, series_w, 1.f);
 
     // The series line's tip dot, standing in for it with the rest of the
     // series line. It waits until the line reads as data, then rides the

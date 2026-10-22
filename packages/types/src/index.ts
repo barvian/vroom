@@ -152,7 +152,7 @@ export type VroomTheme = {
    * line mode.
    */
   skeleton?: VroomColor;
-  /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
+  /** Line-chart-mode polyline stroke width in px, also the loading line's. Defaults to 1.5. */
   lineWidth?: number;
   /**
    * Opacity of the gradient filled beneath the line-chart polyline, at its

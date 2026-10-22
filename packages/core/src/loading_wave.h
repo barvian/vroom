@@ -2,9 +2,9 @@
 // A position across the plot and an elapsed time in; a vertical offset and a
 // brightness out. Also the curves of the hand-off into the data, further down.
 //
-// Three sines, not one. A single sine is too regular to read as anything but a
+// Two sines, not one. A single sine is too regular to read as anything but a
 // test pattern — the eye finds the repeat immediately and the line stops
-// looking like it's waiting for something. Summing three frequencies that
+// looking like it's waiting for something. Summing two frequencies that
 // aren't multiples of each other, each drifting at its own rate, gives a curve
 // that keeps rearranging itself.
 //
@@ -38,13 +38,13 @@ struct Harmonic {
 // drifts are all multiples of a tenth only so the whole curve has an exact
 // period to wrap the phase clock on — see kPeriodSeconds.
 //
-// Liveline's exact components, so the two charts' loading lines match.
+// Liveline itself sums three components (9.4, 15.7 and 4.2); these two are a
+// calmer variant of it.
 constexpr Harmonic kHarmonics[] = {
-    {9.4f, 0.55f, 1.0f},   // carrier — a crest and a half per screen
-    {15.7f, 0.30f, 1.3f},  // ripple, running ahead
-    {4.2f, 0.15f, 0.7f},   // a slow swell, running behind
+    {6.3f, 0.65f, 1.0f},   // carrier — about one crest per screen
+    {11.2f, 0.35f, 1.3f},  // ripple, running ahead
 };
-constexpr int kHarmonicCount = 3;
+constexpr int kHarmonicCount = 2;
 
 // Base phase speed. Slow on purpose: this plays under a chart that has nothing
 // to say yet, and anything quicker reads as activity.
@@ -67,7 +67,9 @@ constexpr float kAmplitudeFrac = 0.07f;
 constexpr float kBreathMin = 0.14f;
 constexpr float kBreathMax = 0.30f;
 // 26 breaths per curve cycle, so the breath wraps with the phase (~2.4s each)
-// and never syncs with the drift into one combined pulse.
+// and never syncs with the drift into one combined pulse. Liveline breathes
+// every 2.4s exactly; no whole count lands on that and still wraps, and 26 is
+// within 20ms of it.
 constexpr float kBreathCyclesPerPeriod = 26.f;
 
 // Offset at `x_frac` (0 = left edge of the plot, 1 = right) and `elapsed_s`, in

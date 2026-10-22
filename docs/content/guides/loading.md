@@ -60,6 +60,8 @@ why the line is drawn dim and never at the contrast of a real series.
 ## Styling
 
 `theme.skeleton` sets the line's colour, and defaults to inheriting `axisText`.
+The line is stroked at `theme.lineWidth`, the weight of the series line that
+replaces it.
 
 The line breathes between 14% and 30% of whatever colour it ends up with; any
 alpha you pass multiplies into it, making an opaque colour the usual choice.
@@ -93,9 +95,9 @@ detected automatically; on React Native, pass it through `reduceMotion`.
 
 ## Why it looks the way it does
 
-The line matches [Liveline](https://github.com/benjitaylor/liveline)'s loading
-state: three sine waves summed, at frequencies that aren't multiples of one
-another and each drifting leftward at its own rate. A single sine reads as a
-test pattern — the repeat is too easy to find — while the sum keeps rearranging
-itself. It's drawn through the same monotone spline the line chart uses, so in
-line mode the hand-off has no renderer seam to hide.
+The line is adapted from [Liveline](https://github.com/benjitaylor/liveline)'s
+loading state: two sine waves summed, at frequencies that aren't multiples of
+one another and each drifting leftward at its own rate. A single sine reads as
+a test pattern — the repeat is too easy to find — while the sum keeps
+rearranging itself. It's drawn at `lineWidth`, through the same monotone spline
+the line chart uses, so in line mode the hand-off has no renderer seam to hide.

@@ -57,7 +57,7 @@ A color ([`VroomColor`](../reference/index.md)) is either:
 | `axisText` | Price + time axis label text |
 | `crosshair` | Crosshair dashed lines |
 | `crosshairTarget` | The hollow ring/dot at the crosshair intersection |
-| `skeleton` | The line drawn across the plot while [`loading`](./loading.md). Defaults to inheriting `axisText`. The line breathes between 14% and 30% of this color, and any alpha you pass multiplies into that, so an opaque color is the usual choice |
+| `skeleton` | The line drawn across the plot while [`loading`](./loading.md). Defaults to inheriting `axisText`, stroked at `lineWidth`. The line breathes between 14% and 30% of this color, and any alpha you pass multiplies into that, so an opaque color is the usual choice |
 
 ## Shape & size
 

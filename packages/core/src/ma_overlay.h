@@ -10,6 +10,7 @@
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
+class SkPath;
 struct SkPoint;
 
 namespace vroom {
@@ -177,6 +178,14 @@ void draw_tip_marker(SkCanvas* canvas,
                      bool pulse,
                      float pulse_phase,
                      float pulse_opacity);
+
+// draw_close_gradient's fill under an already-built `line`, at `alpha`.
+void fill_under(SkCanvas* canvas,
+                const SkPath& line,
+                float candle_right,
+                float candle_area_h,
+                uint32_t color,
+                float alpha);
 
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.

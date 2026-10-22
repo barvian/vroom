@@ -10,8 +10,7 @@
 //                first, while the candles grow out of it and the line gives
 //                way to them (or, in line mode, becomes the series line)
 //
-// Stage 2 is the host-driven version of stage 3's line, kept for hosts that
-// still drive it; the bundled ones go straight from 1 to 3.
+// Stage 2 is optional and host-driven; the bundled hosts go from 1 to 3.
 //
 // Stages 1 and 2 run instead of the chart, so the axis text, price badge,
 // crosshair and indicator panes stay suppressed until the data is really
@@ -32,19 +31,16 @@ namespace vroom::loading_line {
 // the chart holds a capture (see VroomChart::begin_loading_morph).
 void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 
-// Stage 3, over the scene, at `chart.loading_reveal`. In line mode this line
-// stands in for the series line, tip dot included, until the reveal lands.
-// Drawn where the series tip is, after the axis backgrounds: the line clips
-// itself to the plot, and the dot paints into the gutter up to `clip_right`
-// as the series tip's does (see ma_overlay::draw_close_tip).
+// Stage 3, over the scene, at `chart.loading_reveal`. In line mode it stands
+// in for the series line and its tip dot. Drawn after the axis backgrounds:
+// the line clips itself to the plot, and the dot may reach `clip_right`.
 void draw_reveal(SkCanvas* canvas,
                  const VroomChart& chart,
                  const Layout& lay,
                  float clip_right);
 
-// The line-mode wash under stage 3's line, standing in for the series' own so
-// the fill sits under the line as it is rather than where it's heading.
-// Drawn where the series fill would be, beneath the candles and the line.
+// The line-mode wash under stage 3's line, in place of the series' own so it
+// sits under the line as drawn. Goes where the series fill would.
 void draw_reveal_fill(SkCanvas* canvas,
                       const VroomChart& chart,
                       const Layout& lay);

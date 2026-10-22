@@ -378,7 +378,15 @@ void draw_close_gradient(SkCanvas* canvas,
                                         visible_start_ms, candle_duration_ms,
                                         from, from_n, morph_t, tension);
     if (line.isEmpty()) return;
+    fill_under(canvas, line, candle_right, candle_area_h, color, alpha);
+}
 
+void fill_under(SkCanvas* canvas,
+                const SkPath& line,
+                float candle_right,
+                float candle_area_h,
+                uint32_t color,
+                float alpha) {
     // The polyline runs strictly left to right, so its bounds give the first and
     // last vertex x plus the peak the ramp starts from. A peak above the pane
     // (line zoomed off the top) would stretch the ramp, so anchor at the pane.

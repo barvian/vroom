@@ -85,9 +85,8 @@ as from a cache, just appears.
 
 The hand-off runs on its own clock, Liveline's: a fast-out ease that settles in
 about 0.9s, which the line, the candles, the price badge and the axes all read,
-staggered the way Liveline staggers them. As a line, the badge rides in from the
-centre with the line's tip, and the pulse ring joins partway. `transitionEasing` doesn't apply to it,
-but `transitionMs={0}` still snaps it.
+staggered the way Liveline staggers them. `transitionEasing` doesn't apply to
+it, but `transitionMs={0}` still snaps it.
 
 Under an OS reduced-motion preference the line still draws, but held still: no
 drift, no breathing, and no hand-off — the data just appears. On the web this is

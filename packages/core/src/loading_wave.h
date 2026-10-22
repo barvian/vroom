@@ -2,10 +2,8 @@
 // A position across the plot and an elapsed time in; a vertical offset and a
 // brightness out. Also the curves of the hand-off into the data, further down.
 //
-// A single sine travelling leftward, the way a live series scrolls. The effect
-// is restraint: a small amplitude and a faint, slowly breathing opacity. The
-// line is a hint that the chart is alive, not a feature competing with the
-// data about to replace it.
+// A single sine travelling leftward, the way a live series scrolls, kept small
+// and faint: a hint that the chart is alive, not competition for the data.
 //
 // Approach adapted from Liveline (github.com/benjitaylor/liveline, MIT), whose
 // loading state solves the same problem well.
@@ -24,32 +22,24 @@ constexpr float kTwoPi = 6.283185307179586f;
 // Radians across the full plot width: about one crest per screen.
 constexpr float kFreq = 6.3f;
 
-// Phase speed. Slow on purpose: this plays under a chart that has nothing to
-// say yet, and anything quicker reads as activity.
 constexpr float kDriftRadPerSecond = 1.0f;
 
 // What callers wrap elapsed time by, so a chart left loading doesn't lose
-// float precision on the phase. Ten of the sine's cycles rather than one, so
-// the breath below also fits a whole number of times; either way it's a true
-// period, so the wrap is seamless.
+// float precision on the phase. Ten of the sine's cycles, so the breath below
+// also fits a whole number of times and the wrap is seamless.
 constexpr float kPeriodSeconds = 10.f * kTwoPi / kDriftRadPerSecond;
 
 // Peak displacement from the centreline, as a fraction of the pane height.
 constexpr float kAmplitudeFrac = 0.07f;
 
-// Breathing opacity, a dimmer on the color: the line inherits the axis text
-// tone by default, which would compete with the data at full strength.
+// Breathing opacity, a dimmer on the color.
 constexpr float kBreathMin = 0.14f;
 constexpr float kBreathMax = 0.30f;
-// 26 breaths per wrap, so the breath wraps with the phase (~2.4s each) and
-// never syncs with the drift into one combined pulse. Liveline breathes
-// every 2.4s exactly; no whole count lands on that and still wraps, and 26 is
-// within 20ms of it.
+// Liveline breathes every 2.4s; 26 per wrap is the nearest whole count.
 constexpr float kBreathCyclesPerPeriod = 26.f;
 
 // Offset at `x_frac` (0 = left edge of the plot, 1 = right) and `elapsed_s`, in
-// -1 .. 1. Phase runs as (k*x + w*t), which walks the crests leftward. Time
-// outside one period is fine; sin wraps on its own.
+// -1 .. 1. Phase runs as (k*x + w*t), which walks the crests leftward.
 inline float at(float elapsed_s, float x_frac) {
     return std::sin(kFreq * x_frac + kDriftRadPerSecond * elapsed_s);
 }
@@ -77,11 +67,9 @@ inline float approach(float current, float target, float speed, float dt_s) {
 }
 
 // What the line's clocks advance by for a frame `since_s` after the previous
-// one. Real time up to Liveline's 50ms cap (its MAX_DELTA_MS), unlike the
-// chart's shared dt, which counts any frame over 0.1s as a nominal 1/60s and
-// left the line crawling in for seconds on a host thread busy mounting a
-// screen. The cap is what keeps the hand-off a motion rather than a cut there:
-// however far apart the frames, it takes about 19 of them to land.
+// one: real time up to Liveline's 50ms cap. Not the chart's shared dt, which
+// counts a frame over 0.1s as 1/60s and crawls on a busy host thread; the cap
+// keeps the hand-off a motion rather than a cut there.
 constexpr float kMaxFrameSeconds = 0.05f;
 inline float frame_seconds(float since_s) {
     return since_s < 0.f ? 0.f
@@ -98,8 +86,7 @@ inline float fade_in_step(float alpha, float dt_s) {
 }
 
 // The hand-off's single clock, Liveline's chartReveal: 0 when the data lands,
-// 1 once the chart has fully taken over. A fast-out ease that settles in about
-// 0.94s; every layer of the hand-off reads its progress off this one value.
+// 1 once the chart has taken over, about 0.94s later.
 constexpr float kRevealSpeed = 0.09f;
 constexpr float kRevealSnap = 0.005f;
 inline float reveal_step(float reveal, float dt_s) {
@@ -122,9 +109,8 @@ inline float resolve(float reveal, float x_frac) {
     return t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
 }
 
-// The line's share of the frame. In line mode (`line_mode` 1) it *is* the
-// series and stays; over candles it gives way fast, cubed, so the bars take
-// over early and the line never reads as a line chart.
+// The line's share of the frame. In line mode it *is* the series and stays;
+// over candles it gives way fast so it never reads as a line chart.
 inline float presence(float reveal, float line_mode) {
     const float out = (1.f - reveal) * (1.f - reveal) * (1.f - reveal);
     return line_mode > out ? line_mode : out;
@@ -135,29 +121,26 @@ inline float reveal_alpha(float reveal, float breath_now) {
     return breath_now + (1.f - breath_now) * reveal;
 }
 
-// How far the line has tinted from `skeleton` toward the series color. Only a
-// line-mode reveal tints, and it's done by a third of the way.
+// How far the line has tinted from `skeleton` toward the series color.
 inline float tint(float reveal, float line_mode, float presence_now) {
     if (presence_now <= 0.001f) return 0.f;
     const float t = reveal * 3.f < 1.f ? reveal * 3.f : 1.f;
     return t * line_mode / presence_now;
 }
 
-// The gridlines and axis labels through the hand-off: Liveline's ramp for a
-// candle series, which is also the pipeline it draws one as a line in.
+// The gridlines and axis labels through the hand-off.
 inline float axis_alpha(float reveal) { return ramp(reveal, 0.25f, 0.6f); }
 
-// The current-price indicator's opacity through the hand-off. As a line it's
-// Liveline's badge, in by halfway; over candles, its close-price line.
+// The current-price indicator's opacity through the hand-off: Liveline's badge
+// as a line, its close-price line over candles.
 inline float price_alpha(float reveal, float line_mode) {
     float badge = (reveal - 0.25f) / 0.25f;
     badge = badge < 0.f ? 0.f : (badge > 1.f ? 1.f : badge);
     return badge * line_mode + ramp(reveal, 0.4f, 0.8f) * (1.f - line_mode);
 }
 
-// How much of the way from the pane's centre, where the line starts, to the
-// price the indicator has still to travel. Liveline slides its badge and dash
-// in from there as a line; over candles they sit on the close throughout.
+// How much of the way from the pane's centre to the price the indicator has
+// still to travel. Only a line slides in.
 inline float price_slide(float reveal, float line_mode) {
     return (1.f - reveal) * line_mode;
 }
@@ -173,8 +156,7 @@ constexpr float kSamplesPerCycle = 10.f;
 // How many vertices to sample the curve at across a plot `width_px` wide.
 //
 // The floor comes from kFreq rather than a literal, so retuning the curve can't
-// silently undersample it — a narrow chart still gets enough vertices to
-// resolve it, it just spaces them more tightly.
+// silently undersample it.
 //
 // Both the idle curve and the morph capture size themselves through here, so
 // the two are always sampled the same way and the hand-off has no shape

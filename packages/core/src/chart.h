@@ -135,16 +135,14 @@ struct VroomChart {
     // Fades the line in on arrival, so a chart that resolves instantly from
     // cache doesn't flash a placeholder.
     float loading_fade_in = 0.f;
-    // The fade-in's and the reveal's own frame clock (see
-    // loading_wave::frame_seconds). Restarts from zero with the line rather
-    // than spanning an idle gap before it.
+    // The line's own frame clock (see loading_wave::frame_seconds), restarted
+    // with the line so it doesn't span an idle gap.
     std::chrono::steady_clock::time_point loading_tick{};
     bool loading_ticking = false;
 
     // The line's morph vertices, left to right, captured when the data lands.
     // Empty means stage 1 — nothing to morph toward yet — which is what
-    // loading_line::draw switches on. Stage 3 re-aims every frame instead (see
-    // aim_loading_line).
+    // loading_line::draw switches on.
     std::vector<vroom::LinePoint> loading_line;
     // The wave's phase when stage 2 froze it.
     float loading_frozen_s = 0.f;
@@ -156,9 +154,8 @@ struct VroomChart {
     // growing out of it run off one clock and can't finish apart.
     bool loading_line_revealing = false;
     float loading_reveal = 1.f;
-    // Cleared once the host drives the interval morph itself — a live tick
-    // landing mid-reveal, say. The bars then follow the host's clock from where
-    // they are, and the line carries on resolving on its own.
+    // Cleared once the host drives the interval morph itself (a live tick
+    // mid-reveal, say); the line carries on resolving on its own.
     bool loading_reveal_drives_morph = false;
 
     // Interval morph: the outgoing candle geometry captured when a timeframe
@@ -669,7 +666,6 @@ struct VroomChart {
     // where the line is heading. Freezes the sine at its current phase and
     // pairs each vertex with the close of the candle that will occupy
     // that column, then hands `loading_line_t` to the host to drive 0 → 1.
-    // Stage 3 doesn't freeze: it resolves the live wave, as Liveline does.
     void begin_loading_morph();
 
     // The visible slice and price bounds the hand-off aims at, as draw_chart
@@ -690,12 +686,9 @@ struct VroomChart {
     // zero alpha and hands it to the interval-morph machinery, so the existing
     // slot lerp grows each bar outward from the line while candles::draw blends
     // its colour up out of nothing. Also releases `loading`, letting the axes,
-    // price badge and panes come back.
-    //
-    // Runs on its own clock (see `loading_reveal`), Liveline's: the line
-    // resolves onto the closes while the wave keeps moving underneath and the
-    // bars grow at the same time, rather than one after the other. Called
-    // straight after begin_loading_morph, stage 2 is skipped entirely.
+    // price badge and panes come back. Runs on its own clock (see
+    // `loading_reveal`); called straight after begin_loading_morph, it skips
+    // stage 2.
     void begin_loading_reveal();
 
     // True when the line tip's pulse ring is on screen and looping. Gated on

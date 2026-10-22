@@ -996,11 +996,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             tip_from_n, tip_morph_t);
     }
 
-    // 6.6. Loading line, stage 3. Over the series it handed off to, on the same
-    //      clock, so it reads as the bars peeling away from the line rather than
-    //      two things dissolving independently. Here rather than before the
-    //      masks because, in line mode, it carries the tip marker 6.5 would
-    //      draw; the line clips itself to what the masks leave.
+    // 6.6. Loading line, stage 3. After the masks because, in line mode, it
+    //      carries the tip marker 6.5 would draw.
     if (loading_line_revealing) {
         vroom::loading_line::draw_reveal(canvas, *this, lay, tip_clip_right);
     }
@@ -1025,8 +1022,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             (price_anchor.use_morph && morph_src && morph_n_draw > 0)
                 ? morph_src
                 : nullptr;
-        // Through a loading reveal it comes in on Liveline's timing, and as a
-        // line rides in from the centre with the line's tip.
+        // Through a loading reveal it comes in on Liveline's timing.
         const float price_alpha =
             loading_line_revealing
                 ? vroom::loading_wave::price_alpha(loading_reveal, morph_fade)
@@ -1192,9 +1188,7 @@ void VroomChart::begin_frame() {
             // Smoothstep, Liveline's growth curve for the bars, so their size
             // and their fade-up stay in step.
             interval_morph_t =
-                loading_reveal >= 1.f
-                    ? 1.f
-                    : vroom::loading_wave::ramp(loading_reveal, 0.f, 1.f);
+                vroom::loading_wave::ramp(loading_reveal, 0.f, 1.f);
         }
         if (loading_reveal >= 1.f) {
             if (loading_reveal_drives_morph) {
@@ -1268,8 +1262,7 @@ std::vector<vroom::LinePoint> VroomChart::aim_loading_line(float elapsed) const 
         p.to_y = to_y;
         pts.push_back(p);
     };
-    // The close, as Liveline does: the line lands as the close-price line and
-    // the bars grow out of it in stage 3.
+    // The close, as Liveline does: the bars grow out of the close-price line.
     const auto center_frac = [&](const ::VroomCandle& c) {
         return static_cast<float>(vroom::price_fraction(target.bounds, c.close));
     };

@@ -428,9 +428,7 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from,
                     std::size_t from_n,
                     float morph_t) {
-    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
-    opacity = std::clamp(opacity, 0.f, 1.f);
-    if (opacity <= 0.f) return;
+    if (!canvas || opacity <= 0.f) return;
     morph_t = std::clamp(morph_t, 0.f, 1.f);
 
     const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
@@ -440,6 +438,26 @@ void draw_close_tip(SkCanvas* canvas,
     const SkPoint tip =
         close_vertex(lay, bounds, visible, n, window_ms, visible_start_ms,
                      candle_duration_ms, from, from_count, morph_t, 0);
+    draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
+                    line_color, line_width, dot_radius, opacity, pulse,
+                    pulse_phase, pulse_opacity);
+}
+
+void draw_tip_marker(SkCanvas* canvas,
+                     const SkPoint& tip,
+                     float candle_right,
+                     float clip_right,
+                     float candle_area_h,
+                     uint32_t line_color,
+                     float line_width,
+                     float dot_radius,
+                     float opacity,
+                     bool pulse,
+                     float pulse_phase,
+                     float pulse_opacity) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
     // Panned or scaled out of the pane: the line's end isn't on screen, so
     // there's nothing to mark. The clip below would hide it anyway, but the ring
     // is wide enough that a tip just off-pane would still bleed in.

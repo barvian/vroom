@@ -20,8 +20,8 @@
 #include "curve.h"
 #include "gradient.h"
 #include "loading_wave.h"
+#include "ma_overlay.h"
 #include "theme.h"
-#include "tip_geometry.h"
 #include "tip_pulse.h"
 #include "viewport.h"
 
@@ -242,7 +242,10 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
                 b);
 }
 
-void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
+void draw_reveal(SkCanvas* canvas,
+                 const VroomChart& chart,
+                 const Layout& lay,
+                 float clip_right) {
     if (!canvas) return;
     const RevealFrame frame = reveal_frame(chart, lay);
     const auto& pts = frame.pts;
@@ -263,33 +266,25 @@ void draw_reveal(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     // the dot doesn't stack its own over the line's end into a seam.
     SkAutoCanvasRestore restore(canvas, false);
     if (alpha < 1.f) canvas->saveLayerAlphaf(nullptr, alpha);
+    // Exactly what the axis backgrounds leave uncovered, so the line looks as
+    // it did drawn beneath them.
+    const float candle_right = candle_area_width(lay);
+    canvas->save();
+    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, x_axis_top(lay)));
     stroke_path(canvas, spline(pts, frame.tension), color, series_w, 1.f);
+    canvas->restore();
 
     // The series line's tip dot, standing in for it with the rest of the
     // series line: in the line's color, fading only with the layer.
     if (line_mode <= 0.f || f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) return;
-    const float dot_r =
-        tip_geometry::of(series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX]).dot_r;
     // The ring joins partway, as Liveline's does, on the phase the series
     // tip's will carry on from.
-    if (r > loading_wave::kPulseFrom && f[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f) {
-        const tip_pulse::Frame ring_f = tip_pulse::at(
-            chart.tip_pulse_elapsed_s / tip_pulse::kPeriodSeconds,
-            f[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY]);
-        if (ring_f.alpha > 0.f) {
-            SkPaint ring;
-            ring.setAntiAlias(true);
-            ring.setStyle(SkPaint::kStroke_Style);
-            ring.setColor(color);
-            ring.setAlphaf(ring.getAlphaf() * ring_f.alpha);
-            ring.setStrokeWidth(dot_r * tip_pulse::kWidthMul);
-            canvas->drawCircle(pts.back(), dot_r * ring_f.radius_mul, ring);
-        }
-    }
-    SkPaint dot;
-    dot.setAntiAlias(true);
-    dot.setColor(color);
-    canvas->drawCircle(pts.back(), dot_r, dot);
+    ma_overlay::draw_tip_marker(
+        canvas, pts.back(), candle_right, clip_right, price_pane_bottom(lay),
+        color, series_w, f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], 1.f,
+        r > loading_wave::kPulseFrom && f[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+        chart.tip_pulse_elapsed_s / tip_pulse::kPeriodSeconds,
+        f[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY]);
 }
 
 void draw_reveal_fill(SkCanvas* canvas,

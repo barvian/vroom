@@ -10,6 +10,7 @@
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
+struct SkPoint;
 
 namespace vroom {
 struct CandleSnapshot;
@@ -160,6 +161,22 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from = nullptr,
                     std::size_t from_n = 0,
                     float morph_t = 1.f);
+
+// draw_close_tip's marker at an already-resolved `tip`, for a line whose end
+// isn't a candle's close (the loading reveal's). Same on-pane test, clip and
+// paint, so the two are indistinguishable where they meet.
+void draw_tip_marker(SkCanvas* canvas,
+                     const SkPoint& tip,
+                     float candle_right,
+                     float clip_right,
+                     float candle_area_h,
+                     uint32_t line_color,
+                     float line_width,
+                     float dot_radius,
+                     float opacity,
+                     bool pulse,
+                     float pulse_phase,
+                     float pulse_opacity);
 
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.

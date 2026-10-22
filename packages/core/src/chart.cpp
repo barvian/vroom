@@ -963,14 +963,6 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         if (wrap) canvas->restore();
     }
 
-    // 5.9. Loading line, stage 3. Over the series it handed off to, on the same
-    //      clock, so it reads as the bars peeling away from the line rather than
-    //      two things dissolving independently. Before the axis masks below,
-    //      since it belongs inside the plot.
-    if (loading_line_revealing) {
-        vroom::loading_line::draw_reveal(canvas, *this, lay);
-    }
-
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
     //    line is intentionally omitted for now. The bottom strip anchors at
     //    x_axis_top (below any indicator pane) so it never paints over it.
@@ -1002,6 +994,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
             tip_from_n, tip_morph_t);
+    }
+
+    // 6.6. Loading line, stage 3. Over the series it handed off to, on the same
+    //      clock, so it reads as the bars peeling away from the line rather than
+    //      two things dissolving independently. Here rather than before the
+    //      masks because, in line mode, it carries the tip marker 6.5 would
+    //      draw; the line clips itself to what the masks leave.
+    if (loading_line_revealing) {
+        vroom::loading_line::draw_reveal(canvas, *this, lay, tip_clip_right);
     }
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)

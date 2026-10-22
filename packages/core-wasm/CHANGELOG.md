@@ -1,5 +1,56 @@
 # @vroomchart/core-wasm
 
+## 0.23.0
+
+### Minor Changes
+
+- 31f860f: Badge text color can now be set per badge instead of only through the global `theme.badgeText`. `PriceLine.badgeTextColor` sets the text on one line's y-axis price badge and quantity pill, `crosshair.badgeTextColor` sets the text on the crosshair's badges and plus button, and `theme.priceIndicatorBadgeText` sets the text on the current-price badge. Each falls back to `theme.badgeText` when unset, so nothing changes unless you set them.
+
+  ```tsx
+  <VroomChart
+    priceLines={[
+      {
+        id: "tp",
+        price: 2555.4,
+        color: "#4ade80",
+        text: "TP",
+        badgeTextColor: "#0b0f14",
+      },
+    ]}
+    crosshair={{ badgeColor: "#9ca3af", badgeTextColor: "#0b0f14" }}
+    theme={{ priceIndicatorBadgeText: "#0b0f14" }}
+  />
+  ```
+
+- 57d62e9: New theme keys style the current-price indicator's dashed line: `priceIndicatorDashLength`, `priceIndicatorDashGap`, `priceIndicatorLineWidth`, `priceIndicatorLineOpacity` and `priceIndicatorRoundCap`. Dash and gap are the lengths you see, so turning on round caps doesn't make the dashes longer. Opacity multiplies the accent color's alpha and leaves the price badge alone. The defaults match today's line (2px dashes, 2px gaps, 1px wide, full opacity, square ends), so nothing changes unless you set them.
+
+### Patch Changes
+
+- 57d62e9: The current-price line's dashes now start at the price pill, so a whole dash always meets it.
+
+## 0.22.0
+
+### Minor Changes
+
+- 7198213: Add an `autoscaleY` prop. While it's on and the user hasn't zoomed or scaled either axis, the price axis follows the visible candles during a pan, easing quickly so the high and low always stay in the plot. The vertical part of a one-finger drag is ignored so the fit isn't broken by jitter. Zooming, a pinch, or dragging either axis turns it off until the view is reset or the `seriesKey` changes. A timeframe switch on the same key keeps the current state. The ease is skipped when the OS asks for reduced motion. `@vroomchart/core-wasm` exposes the same mode as `VroomChartHandle.setAutoscaleY(enabled, animate)`.
+- eabafde: Add a `crosshair` prop that takes a mode (`'advanced' | 'simple' | 'none'`) or a `CrosshairConfig`.
+
+  - `'advanced'` (default) is the existing crosshair.
+  - `'simple'` is a sparkline scrubber: a vertical line that follows x, a time badge at `simple.height` (0 = bottom, 1 = top), and dimming to the right of the line (`simple.dimAhead`, `simple.dimOpacity`).
+  - `'none'` stops hover, long-press and press-drag from raising the crosshair or firing `onCrosshair`, and dismisses one that's showing. Pan and zoom still work, and a `crosshairOverride` still draws.
+
+  The config also sets `lineStyle` (`'dashed' | 'dotted' | 'solid'`), `lineWidth`, `timeFormat` (`'datetime' | 'time' | 'date'`), `hour12` and `badgeColor` (the crosshair badge fill, which otherwise follows `theme.crosshairTarget`). `crosshairOffset` and `crosshairButton` are deprecated in favor of `crosshair.offset` and `crosshair.button`.
+
+- 5ce6e16: Rework the line chart's tip pulse to match a live-price knob: a single ring five sixths of the dot radius wide grows out from the dot's edge by twice its width while fading to nothing over 0.9s, then rests, once every 1.5s (was 2.6s) — the same rhythm as Liveline's live dot.
+
+  Two new theme keys: `lineTipPulseOpacity` sets the ring's starting opacity (default 0.4), and `lineTipDotRadius` sets the tip dot's radius in px (default 1.5× `lineWidth`, at least 2px). The ring and the line-mode gutter scale with the dot.
+
+### Patch Changes
+
+- 7b466af: The digits in the current-price, crosshair and price-line axis badges are now centered on the digit height, so a comma no longer nudges them above center, and those pills keep the same height for every price.
+- 454f03d: Fix candles, volume bars and the line disappearing at the plot edges while still on screen. Every layer now draws each candle whose center is in view plus one past each edge, clipped to the plot, so they run all the way to both edges. The price auto-fit and the crosshair only read candles whose center is in view, so a candle the clip mostly hides never stretches the scale or catches the pointer. `getCrosshairCandle` now returns null on an empty slot (ahead of the newest candle or over a gap in the data), matching `getCrosshairInfo`.
+- 5ce6e16: Drop the background-colored ring around the line chart's tip dot. On a dark background it read as a dark outline cutting into the line. The pulse now grows straight out of the dot's edge, and line mode's right gutter is 2px narrower since there is no ring to make room for.
+
 ## 0.21.1
 
 ### Patch Changes

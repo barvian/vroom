@@ -12,6 +12,7 @@ import type {
   CrosshairButtonEvent,
   CrosshairEvent,
   CrosshairIndicatorKind,
+  CrosshairMode,
   DefaultDrawingStyle,
   Drawing,
   DrawingSelection,
@@ -49,8 +50,8 @@ function crosshairIndicator(info: CrosshairInfo | null): CrosshairEvent['indicat
 
 export type GestureOptions = {
   crosshairOffset: number;
-  /** False keeps hover / press from raising the crosshair. See VroomChartCoreProps. */
-  crosshairEnabled?: boolean;
+  /** 'none' keeps hover / press from raising the crosshair. See VroomChartCoreProps. */
+  crosshairMode?: CrosshairMode;
   /**
    * Chart is showing the loading line. Suppresses every pointer and wheel
    * gesture: there is no data to pan, zoom, inspect or draw against, and a
@@ -218,6 +219,7 @@ export function useGestures(
   handleRef: React.RefObject<VroomChartHandle | null>,
   scheduleRender: () => void,
   afterPresentRef: React.RefObject<(() => void) | null>,
+  resyncEditRef: React.RefObject<((list: Drawing[]) => void) | null>,
   opts: GestureOptions,
 ): void {
   // Keep latest opts in a ref so the effect's listeners stay stable.
@@ -261,6 +263,7 @@ export function useGestures(
   // there is no partner anchor, so `fixed` is unused.
   const grabRef = useRef<{
     index: number;
+    id: string;
     endpoint: number;
     fixed: DrawPoint;
     isBox: boolean;
@@ -271,6 +274,7 @@ export function useGestures(
   // carries `points0` and is driven by relative translateDrawing calls instead.
   const dragLineRef = useRef<{
     index: number;
+    id: string;
     startTime: number;
     startPrice: number;
     a0: DrawPoint;
@@ -344,6 +348,57 @@ export function useGestures(
   useEffect(() => {
     applySelection();
   }, [opts.drawings, applySelection]);
+
+  // useChartCore re-pushes the committed drawings whenever any prop changes (a
+  // streamed candle, a resize), which wipes the live preview of an edit still
+  // in progress. It calls this right after, with the list it pushed, so the
+  // edit is restated before anything paints.
+  useEffect(() => {
+    resyncEditRef.current = (list) => {
+      const h = handleRef.current;
+      const grab = grabRef.current;
+      const drag = dragLineRef.current;
+      const edit = grab ?? drag;
+      if (!h || !edit) return;
+      const index = list.findIndex((d) => d.id === edit.id);
+      if (index < 0) {
+        // The host removed the drawing mid-drag: drop the edit, commit nothing.
+        grabRef.current = null;
+        dragLineRef.current = null;
+        if (containerRef.current) containerRef.current.style.cursor = '';
+        applySelection();
+        return;
+      }
+      edit.index = index;
+      if (grab) {
+        const c = lastCoordRef.current;
+        if (grab.isBox) {
+          // Restate the grab-start normalization: endpoint 0 is the grabbed
+          // corner, endpoint 1 its fixed diagonal.
+          if (c) h.moveDrawingEndpoint(index, 0, c.timeMs, c.price);
+          h.moveDrawingEndpoint(index, 1, grab.fixed.timeMs, grab.fixed.price);
+        } else if (c) {
+          if (grab.isPath) h.moveDrawingVertex(index, grab.endpoint, c.timeMs, c.price);
+          else h.moveDrawingEndpoint(index, grab.endpoint, c.timeMs, c.price);
+        }
+      } else if (drag) {
+        if (drag.points0) {
+          // The core is back at points0; apply the whole delta so it agrees
+          // with the counters the next incremental move builds on.
+          const dT = drag.appliedTime ?? 0;
+          const dP = drag.appliedPrice ?? 0;
+          if (dT !== 0 || dP !== 0) h.translateDrawing(index, dT, dP);
+        } else {
+          h.moveDrawingEndpoint(index, 0, drag.lastA.timeMs, drag.lastA.price);
+          h.moveDrawingEndpoint(index, 1, drag.lastB.timeMs, drag.lastB.price);
+        }
+      }
+      applySelection();
+    };
+    return () => {
+      resyncEditRef.current = null;
+    };
+  }, [resyncEditRef, handleRef, containerRef, applySelection]);
 
   // The last payload handed to onSelectionChange, so repeated frames that leave
   // the selection where it was stay silent.
@@ -781,8 +836,8 @@ export function useGestures(
   const hideCrosshairImplRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (opts.crosshairEnabled === false) hideCrosshairImplRef.current?.();
-  }, [opts.crosshairEnabled]);
+    if (opts.crosshairMode === 'none') hideCrosshairImplRef.current?.();
+  }, [opts.crosshairMode]);
 
   // Reset the in-progress draft whenever no draw tool is active (e.g. the host
   // toggled the tool off, or switched tools, mid-draw), so re-entering draw mode
@@ -1027,7 +1082,7 @@ export function useGestures(
 
     const showCrosshair = (x: number, y: number, source: 'press' | 'hover', reason: 'show' | 'move') => {
       const h = handleRef.current;
-      if (!h || optsRef.current.crosshairEnabled === false) return;
+      if (!h || optsRef.current.crosshairMode === 'none') return;
       crosshairActive = true;
       localCrosshairActiveRef.current = true;
       crosshairSource = source;
@@ -1378,6 +1433,7 @@ export function useGestures(
           if (pt) {
             grabRef.current = {
               index: hit.index,
+              id: gd.id,
               endpoint: vertex,
               fixed: pt,
               isBox: false,
@@ -1397,7 +1453,13 @@ export function useGestures(
           const diagonal = corners[(hit.part + 2) % 4];
           h.moveDrawingEndpoint(hit.index, 0, grabbed.timeMs, grabbed.price);
           h.moveDrawingEndpoint(hit.index, 1, diagonal.timeMs, diagonal.price);
-          grabRef.current = { index: hit.index, endpoint: 0, fixed: diagonal, isBox: true };
+          grabRef.current = {
+            index: hit.index,
+            id: gd.id,
+            endpoint: 0,
+            fixed: diagonal,
+            isBox: true,
+          };
           lastCoordRef.current = grabbed;
           applySelection(); // enlarge the grabbed handle
           return; // the handle drag owns this pointer — no pan / long-press
@@ -1405,6 +1467,7 @@ export function useGestures(
         if (hit && gd && gd.type === 'line' && hit.part <= 1) {
           grabRef.current = {
             index: hit.index,
+            id: gd.id,
             endpoint: hit.part,
             fixed: gd.points[hit.part === 0 ? 1 : 0], // the other end stays put
             isBox: false,
@@ -1432,6 +1495,7 @@ export function useGestures(
               const last = d.points[d.points.length - 1]!;
               dragLineRef.current = {
                 index: selIdx,
+                id: d.id,
                 startTime: start.timeMs,
                 startPrice: start.price,
                 a0: first,
@@ -1457,7 +1521,7 @@ export function useGestures(
         e.pointerType !== 'mouse' &&
         (panMode === 'chart' || panMode === 'indicator') &&
         !drawActive() &&
-        optsRef.current.crosshairEnabled !== false
+        optsRef.current.crosshairMode !== 'none'
       ) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;

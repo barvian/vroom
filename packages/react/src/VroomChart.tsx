@@ -5,7 +5,7 @@
 import React, { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 
-import { useChartCore } from './useChartCore';
+import { resolveCrosshair, useChartCore } from './useChartCore';
 import { useGestures } from './useGestures';
 import { useManagedDrawings } from './useManagedDrawings';
 import type { VroomChartProps } from './types';
@@ -34,8 +34,7 @@ export function VroomChart(props: VroomChartProps) {
     className,
     style,
     wasm,
-    crosshairOffset = 40,
-    crosshairEnabled = true,
+    crosshairOffset,
     crosshairOverride,
     mode,
     tool,
@@ -85,14 +84,16 @@ export function VroomChart(props: VroomChartProps) {
     };
   }, [historyRef, stored, undo, redo, clearHistory, restyle]);
 
-  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef } = useChartCore(
-    stored ? { ...props, drawings: effectiveDrawings } : props,
-    wasm ? { wasm } : undefined,
-  );
+  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef } =
+    useChartCore(
+      stored ? { ...props, drawings: effectiveDrawings } : props,
+      wasm ? { wasm } : undefined,
+    );
 
-  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
-    crosshairOffset,
-    crosshairEnabled,
+  const crosshair = resolveCrosshair(props.crosshair, crosshairOffset, props.crosshairButton);
+  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef, {
+    crosshairOffset: crosshair.offset,
+    crosshairMode: crosshair.mode,
     // Same condition useChartCore draws the line on: a refresh that still
     // has data keeps the chart interactive.
     loading: props.loading === true && props.candles.length === 0,
@@ -116,7 +117,7 @@ export function VroomChart(props: VroomChartProps) {
     onPriceLineClose,
     footprints,
     onFootprint,
-    crosshairButton: props.crosshairButton,
+    crosshairButton: crosshair.button,
     onCrosshairButton: props.onCrosshairButton,
     seriesKey,
   });

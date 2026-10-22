@@ -1041,8 +1041,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             canvas->save();
             canvas->translate(0.f, (candle_area_h * 0.5f - y) * price_slide);
         }
-        vroom::price_indicator::draw(canvas, *this, lay, bounds, candle_right,
-                                     candle_area_h, price_from, morph_t);
+        price_indicator_accent = vroom::price_indicator::draw(
+            canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
+            morph_t);
         if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();
 
@@ -1083,7 +1084,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      (reading that pane's value) and otherwise stay in the price pane.
     if (crosshair_active) {
         const vroom::IndicatorReadout readout =
-            crosshair_pinned
+            crosshair_pinned || crosshair_simple()
                 ? vroom::IndicatorReadout{}
                 : indicator_readout(lay, range.start, n, crosshair_y_px);
         // Snap once: the slot gives both the vertical line's x (its center) and

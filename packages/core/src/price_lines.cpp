@@ -232,10 +232,10 @@ void draw_axis_badge(SkCanvas* canvas,
     vroom::format_price(buf, sizeof(buf), price, fmt);
     const size_t len = std::strlen(buf);
 
-    SkRect tb;
-    const float text_w = font.measureText(buf, len, SkTextEncoding::kUTF8, &tb);
+    const float text_w = font.measureText(buf, len, SkTextEncoding::kUTF8);
+    const auto metrics = vroom::labels::badge_text_metrics(font);
     const float box_w = text_w + 2.f * kPadH;
-    const float box_h = tb.height() + 2.f * kPadV;
+    const float box_h = metrics.height + 2.f * kPadV;
     const float cx = lay.width_px - lay.y_axis_width_px * 0.5f;
     const SkRect rect =
         SkRect::MakeXYWH(cx - box_w * 0.5f, y - box_h * 0.5f, box_w, box_h);
@@ -250,8 +250,8 @@ void draw_axis_badge(SkCanvas* canvas,
     text.setAntiAlias(true);
     text.setColor(text_color);
     text.setAlphaf(text.getAlphaf() * lay.y_axis_opacity);
-    canvas->drawString(buf, cx - text_w * 0.5f,
-                       y - (tb.fTop + tb.fBottom) * 0.5f, font, text);
+    canvas->drawString(buf, cx - text_w * 0.5f, y + metrics.baseline_dy, font,
+                       text);
 }
 
 }  // namespace
@@ -267,7 +267,6 @@ void draw(SkCanvas* canvas,
 
     const VroomPriceLineStyle& style = chart.price_line_style;
     const float corner = resolve_corner_radius_px(style.corner_radius_px);
-    const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
     SkFont font;
     const bool has_font = label_font(chart, &font);
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
@@ -283,6 +282,8 @@ void draw(SkCanvas* canvas,
         if (y < 0.f || y > candle_area_h) continue;  // off-pane: cull, don't clamp
 
         const SkColor color = static_cast<SkColor>(pl.color);
+        const SkColor badge_text =
+            vroom::badge_text_color(chart.theme, pl.badge_text);
         const float stroke = pl.width > 0.f ? pl.width : 1.f;
         // Hovering the line body lifts the whole line; hovering just the close
         // button lifts only that button (handled below).

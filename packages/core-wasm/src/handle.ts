@@ -29,6 +29,7 @@ export enum ColorKey {
   AccentBear = 15,
   Line = 16,
   Skeleton = 17,
+  PriceIndicatorBadgeText = 18,
 }
 
 /** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
@@ -52,6 +53,11 @@ export enum FloatKey {
   BadgeFontSize = 16,
   LineTipPulseOpacity = 17,
   LineTipDotRadius = 18,
+  PriceIndicatorDash = 19,
+  PriceIndicatorGap = 20,
+  PriceIndicatorWidth = 21,
+  PriceIndicatorOpacity = 22,
+  PriceIndicatorRoundCap = 23,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -429,6 +435,8 @@ export type PriceLineSpec = {
   quantity: string;
   /** Bitwise-or of the PRICE_LINE_* flags. */
   flags: number;
+  /** Packed 0xAARRGGBB axis-badge and quantity text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** Price status lines + shared style, in the core's numeric encoding. */
@@ -502,6 +510,29 @@ export type CrosshairButtonSpec = {
   cornerRadiusPx: number;
   /** Brightness multiplier while hovered or open; <= 0 = 1.25. */
   hoverBoost: number;
+};
+
+/** The crosshair's style, in the core's numeric encoding. Negatives take the mode's defaults. */
+export type CrosshairStyleSpec = {
+  /** 0 advanced, 1 simple, 2 none. */
+  mode: number;
+  /** 0 dashed, 1 dotted, 2 solid; < 0 = solid in simple, dashed otherwise. */
+  lineStyle: number;
+  /** Stroke px; <= 0 = 1. */
+  lineWidthPx: number;
+  /** 0 datetime, 1 time, 2 date; < 0 = time in simple, datetime otherwise. */
+  timeFormat: number;
+  hour12: boolean;
+  /** Simple mode: badge top as a fraction of chart height (1 = top); < 0 = 1. */
+  simpleHeight: number;
+  /** Simple mode: dim the plot right of the line. */
+  dimAhead: boolean;
+  /** Simple mode: opacity of the dimmed region; < 0 = 0.35. */
+  dimOpacity: number;
+  /** Packed 0xAARRGGBB badge fill. 0 inherits the theme's crosshairTarget. */
+  badgeColor: number;
+  /** Packed 0xAARRGGBB badge text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */
@@ -815,6 +846,8 @@ export interface VroomChartHandle {
   setFootprintHover(candleTimeMs: number, side: number): void;
   /** Replace the crosshair plus button's style. `enabled: false` hides it. */
   setCrosshairButton(spec: CrosshairButtonSpec): void;
+  /** Replace the crosshair style (mode, lines, time badge, simple-mode options). */
+  setCrosshairStyle(spec: CrosshairStyleSpec): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the
    * price under it; `setCrosshair` / `clearCrosshair` release the lock.

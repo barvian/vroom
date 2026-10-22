@@ -23,11 +23,13 @@
 #include "include/core/SkRefCnt.h"
 #pragma clang diagnostic pop
 
+#include "crosshair_style.h"
 #include "fair_value_gaps.h"
 #include "footprints_layout.h"
 #include "labels.h"
 #include "line_morph.h"
 #include "price_format.h"
+#include "price_indicator.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -97,6 +99,13 @@ struct VroomChart {
     // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
     float morph_collapse = 0.f;
     float morph_fade = 0.f;
+    // The current-price line's style blend, riding `morph_fade`. Settled unless
+    // the host began one (vroom_chart_begin_price_indicator_morph);
+    // set_chart_type settles it again.
+    vroom::price_indicator_style::Morph price_indicator_morph{};
+    // The accent the indicator resolved last frame, before that blend: where
+    // the next begin's color starts.
+    uint32_t price_indicator_accent = 0;
 
     // Phase of the line-tip pulse, in seconds into its cycle. Unlike every other
     // animation here this one is core-driven: it loops with no endpoint for the
@@ -219,10 +228,16 @@ struct VroomChart {
     vroom::PriceBounds autoscale_display{0.0, 1.0};
     bool autoscale_display_valid = false;
 
-    // --- crosshair (not yet drawn) -----------------------------------------
+    // --- crosshair -----------------------------------------------------------
     bool   crosshair_active = false;
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
+    // Stored resolved (see crosshair_style::resolve).
+    VroomCrosshairStyle crosshair_style =
+        vroom::crosshair_style::resolve(VroomCrosshairStyle{});
+    bool crosshair_simple() const {
+        return crosshair_style.mode == VROOM_CROSSHAIR_SIMPLE;
+    }
 
     // Plus button on the horizontal line (order entry). Style is stored
     // resolved (see crosshair_button::resolve). While pinned, the line tracks
@@ -440,6 +455,7 @@ struct VroomChart {
         std::string text;
         std::string quantity;
         int32_t     flags = 0;  // VroomPriceLineFlags
+        uint32_t    badge_text = 0;  // 0 inherits the theme's BADGE_TEXT
     };
     std::vector<StoredPriceLine> price_lines;
     VroomPriceLineStyle          price_line_style{};

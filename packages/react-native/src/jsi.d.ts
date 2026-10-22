@@ -1,6 +1,6 @@
 // Ambient declaration for the JSI HostObject installed by VroomChartModule.
 
-import type { SkImage, SkPicture } from '@shopify/react-native-skia';
+import type { SkImage, SkPicture } from './skia';
 import type { IntervalTransition } from '@vroomchart/types';
 
 /** Frame the JSI handle returns: an SkPicture on iOS, an SkImage on Android. */
@@ -33,6 +33,14 @@ export interface ChartHandle {
   setPriceScaleMode(mode: number): void;
   /** Candle↔line morph blend: collapse folds candles to close, fade crossfades. */
   setMorph(collapse: number, fade: number): void;
+  /**
+   * Blends the current-price line's style and the line and badge color into
+   * whatever the theme sets next, over a candle↔line morph heading to `mode`
+   * (0 = candles, 1 = line). Call it before pushing that theme. The blend
+   * follows setMorph's `fade` from where it stands now and setChartType ends
+   * it; without this call they snap.
+   */
+  beginPriceIndicatorMorph(mode: number): void;
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
   getVisibleRange(): { startMs: number; endMs: number };
   /**
@@ -452,6 +460,8 @@ export interface ChartHandle {
       text: string;
       quantity: string;
       flags: number;
+      /** Packed 0xAARRGGBB axis-badge and quantity text; 0 inherits the theme's badgeText. */
+      badgeText: number;
     }[];
     bodyBg: number;
     fontSizePx: number;
@@ -528,6 +538,24 @@ export interface ChartHandle {
     enabled: boolean;
     cornerRadiusPx: number;
     hoverBoost: number;
+  }): void;
+  /**
+   * Replaces the crosshair style, in the core's numeric encoding (see
+   * VroomCrosshairStyle). Negative values take the mode's defaults.
+   */
+  setCrosshairStyle(spec: {
+    mode: number;
+    lineStyle: number;
+    lineWidthPx: number;
+    timeFormat: number;
+    hour12: boolean;
+    simpleHeight: number;
+    dimAhead: boolean;
+    dimOpacity: number;
+    /** Packed 0xAARRGGBB; 0 inherits the theme's crosshairTarget. */
+    badgeColor: number;
+    /** Packed 0xAARRGGBB; 0 inherits the theme's badgeText. */
+    badgeText: number;
   }): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the

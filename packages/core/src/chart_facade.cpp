@@ -319,7 +319,17 @@ extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     const float t = mode == 1 ? 1.f : 0.f;
     chart->morph_collapse = t;
     chart->morph_fade = t;
+    chart->price_indicator_morph.from_fade = chart->price_indicator_morph.to_fade;
     chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_begin_price_indicator_morph(VroomChart* chart,
+                                                        int32_t mode) {
+    if (!chart) return;
+    // Nothing visible changes until the theme does, so no mark_dirty.
+    chart->price_indicator_morph = vroom::price_indicator_style::begin(
+        chart->price_indicator_morph, chart->theme, chart->price_indicator_accent,
+        chart->morph_fade, mode == 1 ? 1.f : 0.f);
 }
 
 extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,
@@ -1046,6 +1056,13 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
     // the one on the badge.
     out->indicator_kind = -1;
     out->indicator_value = 0.0;
+    // Simple mode has no horizontal line to read a price at, so it reports the
+    // close of the candle under the vertical line.
+    if (chart->crosshair_simple()) {
+        out->price = snap.has_candle ? chart->candles[snap.index].close
+                                     : std::numeric_limits<double>::quiet_NaN();
+        return true;
+    }
     const vroom::IndicatorReadout readout =
         chart->crosshair_pinned
             ? vroom::IndicatorReadout{}
@@ -1057,6 +1074,19 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
                                      : std::numeric_limits<double>::quiet_NaN();
     }
     return true;
+}
+
+extern "C" void vroom_chart_set_crosshair_style(VroomChart* chart,
+                                                const VroomCrosshairStyle* style) {
+    if (!chart) return;
+    chart->crosshair_style =
+        vroom::crosshair_style::resolve(style ? *style : VroomCrosshairStyle{});
+    // The plus button only exists on the advanced crosshair.
+    if (chart->crosshair_simple()) {
+        chart->crosshair_button_hovered = false;
+        chart->crosshair_pinned = false;
+    }
+    chart->mark_dirty();
 }
 
 // ---- Crosshair plus button ------------------------------------------------
@@ -1214,6 +1244,7 @@ extern "C" void vroom_chart_set_price_lines(VroomChart* chart,
         if (src.text) pl.text = src.text;
         if (src.quantity) pl.quantity = src.quantity;
         pl.flags = src.flags;
+        pl.badge_text = src.badge_text;
         chart->price_lines.push_back(std::move(pl));
     }
     if (style) chart->price_line_style = *style;

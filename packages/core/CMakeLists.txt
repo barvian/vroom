@@ -71,6 +71,8 @@ if(VROOM_BUILD_TESTS)
         tests/test_price_format.cpp
         tests/test_drawing_bounds.cpp
         tests/test_crosshair_button.cpp
+        tests/test_crosshair_style.cpp
+        tests/test_badge_text.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
         src/footprints_layout.cpp
@@ -86,6 +88,7 @@ if(VROOM_BUILD_TESTS)
         src/ichimoku.cpp
         src/fair_value_gaps.cpp
         src/volume_anim.cpp
+        src/theme.cpp
     )
     target_include_directories(vroom_tests PRIVATE include src tests)
     add_test(NAME vroom_tests COMMAND vroom_tests)

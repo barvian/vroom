@@ -53,6 +53,12 @@ describe('applyTheme', () => {
     expect(calls).toHaveLength(3);
   });
 
+  it('pushes the current-price badge text at its VroomColorKey index', () => {
+    const { handle, calls } = fakeHandle();
+    applyTheme(handle, { priceIndicatorBadgeText: '#0b0f14' });
+    expect(calls).toEqual([[18, 0xff0b0f14]]);
+  });
+
   it('skips absent and unparseable colors', () => {
     const { handle, calls } = fakeHandle();
     applyTheme(handle, { grid: 'nonsense', axisText: '#c9d1d9' });
@@ -88,6 +94,30 @@ describe('applyTheme', () => {
     expect(floats).toContainEqual([17, 0.6]);
     expect(floats).toContainEqual([18, 6]);
     expect(floats).toHaveLength(6);
+  });
+
+  it('pushes the current-price indicator keys at their VroomFloatKey index', () => {
+    const floats: Array<[number, number]> = [];
+    const handle = {
+      setColor: vi.fn(),
+      setFloat: vi.fn((key: number, value: number) => {
+        floats.push([key, value]);
+      }),
+    } as unknown as ChartHandle;
+    applyTheme(handle, {
+      priceIndicatorDashLength: 4,
+      priceIndicatorDashGap: 0,
+      priceIndicatorLineWidth: 1.5,
+      priceIndicatorLineOpacity: 0.3,
+      priceIndicatorRoundCap: false,
+    });
+    expect(floats).toEqual([
+      [19, 4],
+      [20, 0],
+      [21, 1.5],
+      [22, 0.3],
+      [23, 0],
+    ]);
   });
 
   it('does nothing for an empty theme', () => {

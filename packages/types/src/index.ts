@@ -131,6 +131,10 @@ export type VroomTheme = {
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes
    * generally want a dark value here.
+   *
+   * Each of those badges can override it: `priceIndicatorBadgeText` for the
+   * current-price badge, `crosshair.badgeTextColor` for the crosshair's badges,
+   * and `badgeTextColor` on an individual {@link PriceLine}.
    */
   badgeText?: VroomColor;
   /** Crosshair dashed lines. */
@@ -198,6 +202,38 @@ export type VroomTheme = {
    * ring fades from here to fully transparent as it grows. Defaults to 0.4.
    */
   lineTipPulseOpacity?: number;
+  /**
+   * Dash length in px of the current-price indicator's dashed line. Defaults to 2.
+   *
+   * This is the length you see, caps included: with `priceIndicatorRoundCap`
+   * on, the round ends are taken out of it rather than added to it.
+   */
+  priceIndicatorDashLength?: number;
+  /**
+   * Gap in px between the current-price indicator's dashes. Defaults to 2; 0
+   * draws a solid line.
+   *
+   * Like `priceIndicatorDashLength`, this is the gap you see, caps included.
+   */
+  priceIndicatorDashGap?: number;
+  /** Stroke width in px of the current-price indicator's dashed line. Defaults to 1. */
+  priceIndicatorLineWidth?: number;
+  /**
+   * Opacity of the current-price indicator's dashed line, from 0 to 1. Defaults
+   * to 1.
+   *
+   * Multiplies the alpha of `accentBull` / `accentBear`, so a translucent accent
+   * gets fainter still. The price badge keeps the accent's own alpha.
+   */
+  priceIndicatorLineOpacity?: number;
+  /** Round the ends of the current-price indicator's dashes. Defaults to `false`. */
+  priceIndicatorRoundCap?: boolean;
+  /**
+   * Text on the current-price badge in the y-axis strip. Defaults to
+   * `badgeText`. Useful when `accentBull` / `accentBear` are light enough that
+   * the shared badge text doesn't read against them.
+   */
+  priceIndicatorBadgeText?: VroomColor;
   /**
    * Show the price (y) axis strip down the right edge. Defaults to `true`.
    *
@@ -934,12 +970,21 @@ export type PriceLine = {
   /** Body label — render whatever you like (e.g. `'Limit Buy @ 13.79'`). */
   text?: string;
   /**
-   * Trailing segment, drawn as a solid-filled pill with white text so size reads
-   * at a glance (e.g. `'x 5.206'`). Omit to hide it.
+   * Trailing segment, drawn as a pill filled with `color` so size reads at a
+   * glance (e.g. `'x 5.206'`). Its text is `badgeTextColor`. Omit to hide it.
    */
   quantity?: string;
-  /** Line, border, body text and close-icon color. Defaults to a soft red. */
+  /**
+   * Line, border, body text and close-icon color, and the fill of the
+   * `quantity` pill and the y-axis price badge. Defaults to a soft red.
+   */
   color?: VroomColor;
+  /**
+   * Text on this line's filled pieces: the y-axis price badge and the
+   * `quantity` pill. Defaults to `theme.badgeText`. Set it when `color` is
+   * light enough that the shared badge text doesn't read against it.
+   */
+  badgeTextColor?: VroomColor;
   /** Stroke width in px. Default 1. */
   width?: number;
   /** Line style. Default `'dotted'`, matching the current-price indicator. */
@@ -1118,7 +1163,8 @@ export type FootprintEvent = {
  * turning the whole badge into a button — the order-entry affordance.
  *
  * Opt-in: nothing renders unless `enabled` is true. The badge takes its fill
- * and text color from the theme (`theme.crosshairTarget` / `theme.badgeText`)
+ * and text color from `crosshair.badgeColor` / `crosshair.badgeTextColor`
+ * (defaulting to `theme.crosshairTarget` / `theme.badgeText`)
  * and grows leftward to fit the plus, so the price stays in the y-axis column.
  * Clicking (or tapping) anywhere on it locks the crosshair at that price and
  * fires `onCrosshairButton`, which is where your own UI (e.g. "Buy limit" /
@@ -1185,6 +1231,81 @@ export type CrosshairButtonEvent = {
   pane: PlotRect | null;
   /** Close the button and unlock the crosshair. Safe to call more than once. */
   close: () => void;
+};
+
+/**
+ * Which crosshair hover, long-press and press-drag raise.
+ *   'advanced' — default: vertical and horizontal lines, a ring where they
+ *                meet, a time badge in the x-axis strip and a price (or
+ *                indicator) badge in the y-axis strip. The plus button lives here.
+ *   'simple'   — one vertical line snapped to the candle, with a time badge on
+ *                top. Dragging moves it along the time axis only. Suits
+ *                sparkline-style charts. See {@link CrosshairConfig.simple}.
+ *   'none'     — gestures never raise a crosshair or fire `onCrosshair`, and
+ *                one already up is dismissed with a `'hide'`. Pan and zoom are
+ *                unaffected, and a `crosshairOverride` still draws.
+ */
+export type CrosshairMode = 'advanced' | 'simple' | 'none';
+
+/** Stroke pattern for the crosshair lines. */
+export type CrosshairLineStyle = 'dashed' | 'dotted' | 'solid';
+
+/**
+ * The crosshair time badge's text, in local time.
+ *   'datetime' — `10/14 11:30`
+ *   'time'     — `11:30`
+ *   'date'     — `Oct 14`
+ */
+export type CrosshairTimeFormat = 'datetime' | 'time' | 'date';
+
+/**
+ * Crosshair behavior and look. Every field is optional; colors come from the
+ * theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
+ * fill, `badgeText` for badge text) unless `badgeColor` / `badgeTextColor` set
+ * the badge fill / text.
+ */
+export type CrosshairConfig = {
+  /** Default `'advanced'`. See {@link CrosshairMode}. */
+  mode?: CrosshairMode;
+  /** Default `'dashed'` in advanced mode, `'solid'` in simple mode. */
+  lineStyle?: CrosshairLineStyle;
+  /** Line stroke in px. Default 1. Dash and dot spacing scale with it. */
+  lineWidth?: number;
+  /** Default `'datetime'` in advanced mode, `'time'` in simple mode. */
+  timeFormat?: CrosshairTimeFormat;
+  /** 12-hour clock with AM/PM (`11:30 AM`). Default false. */
+  hour12?: boolean;
+  /**
+   * Fill of the crosshair's time and price badges, the plus button and the
+   * simple-mode badge. Defaults to `theme.crosshairTarget`, which also colors
+   * the ring; this leaves the ring alone. Text follows `badgeTextColor`.
+   */
+  badgeColor?: VroomColor;
+  /**
+   * Text on the crosshair's time and price badges, the plus button and the
+   * simple-mode badge. Defaults to `theme.badgeText`.
+   */
+  badgeTextColor?: VroomColor;
+  /**
+   * Pixels the touch crosshair's dot and horizontal line sit above the finger
+   * (advanced mode). Default 40. Replaces `crosshairOffset`.
+   */
+  offset?: number;
+  /** The plus button (advanced mode only). Replaces `crosshairButton`. */
+  button?: CrosshairButtonConfig;
+  /** Simple-mode options. */
+  simple?: {
+    /**
+     * Where the badge's top sits, as a fraction of the chart's height: 1 is the
+     * top, 0 the bottom. Default 1. The badge always stays fully on screen, and
+     * the line runs from under it down to the bottom of the plot.
+     */
+    height?: number;
+    /** Dim everything right of the line, the scrub highlight. Default true. */
+    dimAhead?: boolean;
+    /** Opacity of what `dimAhead` dims, 0 to 1. Default 0.35. */
+    dimOpacity?: number;
+  };
 };
 
 /**
@@ -1339,6 +1460,11 @@ export type VroomChartCoreProps = {
    * Price-series render style. `'candles'` (default) draws candlesticks;
    * `'line'` draws a polyline through each candle's close (style it with
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
+   *
+   * On React Native, `priceIndicator*` theme keys that change in the same
+   * render as `chartType` blend across the switch instead of snapping, and so
+   * does the current-price line and badge color `accentBull` / `accentBear`
+   * resolve to.
    */
   chartType?: ChartType;
   /**
@@ -1462,6 +1588,8 @@ export type VroomChartCoreProps = {
    * The crosshair plus button (a "+" inside the crosshair price badge) for
    * placing orders from the chart. Off unless
    * `enabled` is true. See {@link CrosshairButtonConfig}.
+   *
+   * @deprecated Use `crosshair.button`. Still honored when that is unset.
    */
   crosshairButton?: CrosshairButtonConfig;
   /**
@@ -1492,15 +1620,16 @@ export type VroomChartCoreProps = {
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the
    * touch x. Default 40.
+   *
+   * @deprecated Use `crosshair.offset`. Still honored when that is unset.
    */
   crosshairOffset?: number;
   /**
-   * Let the user raise the crosshair (hover, long-press, press-drag). Defaults to
-   * `true`. When `false`, those gestures never draw it or fire `onCrosshair`, and
-   * one already up is dismissed (with a `'hide'`). Pan and zoom are unaffected.
-   * A `crosshairOverride` still draws.
+   * Which crosshair the user gets, and how it looks. Pass a mode
+   * (`crosshair="simple"`) or a {@link CrosshairConfig}. Defaults to
+   * `'advanced'`, today's crosshair. See {@link CrosshairMode}.
    */
-  crosshairEnabled?: boolean;
+  crosshair?: CrosshairMode | CrosshairConfig;
   /**
    * Controlled external crosshair, in data space (epoch ms + price). When
    * non-null the chart shows a crosshair there — typically synced from another

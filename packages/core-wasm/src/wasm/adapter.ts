@@ -11,6 +11,7 @@ import type {
   Coord,
   CrosshairButtonHit,
   CrosshairButtonSpec,
+  CrosshairStyleSpec,
   CrosshairCandle,
   CrosshairInfo,
   IchimokuSpec,
@@ -95,6 +96,7 @@ interface WebChartInstance {
   hitTestFootprint(x: number, y: number): FootprintHit | null;
   setFootprintHover(candleTimeMs: number, side: number): void;
   setCrosshairButton(spec: CrosshairButtonSpec): void;
+  setCrosshairStyle(spec: CrosshairStyleSpec): void;
   setCrosshairButtonState(hovered: boolean, pinned: boolean): void;
   getCrosshairButton(): CrosshairButtonHit | null;
   hitTestCrosshairButton(x: number, y: number): CrosshairButtonHit | null;
@@ -336,7 +338,11 @@ class WasmHandle implements VroomChartHandle {
   setPriceLines(priceLines: PriceLinesSpec): void {
     this.wc.setPriceLines({
       ...priceLines,
-      lines: priceLines.lines.map((l) => ({ ...l, color: l.color >>> 0 })),
+      lines: priceLines.lines.map((l) => ({
+        ...l,
+        color: l.color >>> 0,
+        badgeText: l.badgeText >>> 0,
+      })),
       bodyBg: priceLines.bodyBg >>> 0,
     });
   }
@@ -360,6 +366,13 @@ class WasmHandle implements VroomChartHandle {
   }
   setCrosshairButton(spec: CrosshairButtonSpec): void {
     this.wc.setCrosshairButton(spec);
+  }
+  setCrosshairStyle(spec: CrosshairStyleSpec): void {
+    this.wc.setCrosshairStyle({
+      ...spec,
+      badgeColor: spec.badgeColor >>> 0,
+      badgeText: spec.badgeText >>> 0,
+    });
   }
   setCrosshairButtonState(hovered: boolean, pinned: boolean): void {
     this.wc.setCrosshairButtonState(hovered, pinned);

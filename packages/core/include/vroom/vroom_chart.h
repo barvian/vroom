@@ -341,6 +341,7 @@ typedef struct VroomPriceLine {
     const char* text;        // body label
     const char* quantity;    // trailing solid-fill segment
     int32_t     flags;       // bitwise-or of VroomPriceLineFlags
+    uint32_t    badge_text;  // 0xAARRGGBB axis-badge + quantity text; 0 inherits VROOM_COLOR_BADGE_TEXT
 } VroomPriceLine;
 
 // Layout/style shared by every price line, so the per-line struct stays small.
@@ -352,6 +353,46 @@ typedef struct VroomPriceLineStyle {
     float    hover_boost;       // brightness multiplier for the hovered segment (1 = flat)
     float    corner_radius_px;  // < 0 = default 6px; otherwise clamped to 0–6
 } VroomPriceLineStyle;
+
+// ---- Crosshair style --------------------------------------------------------
+
+typedef enum {
+    VROOM_CROSSHAIR_ADVANCED = 0,  // both lines, ring, time + price badges (default)
+    VROOM_CROSSHAIR_SIMPLE   = 1,  // one vertical line with a time badge on top
+    VROOM_CROSSHAIR_NONE     = 2,  // gestures raise nothing; an override draws advanced
+} VroomCrosshairMode;
+
+typedef enum {
+    VROOM_CROSSHAIR_LINE_DASHED = 0,
+    VROOM_CROSSHAIR_LINE_DOTTED = 1,
+    VROOM_CROSSHAIR_LINE_SOLID  = 2,
+} VroomCrosshairLineStyle;
+
+typedef enum {
+    VROOM_CROSSHAIR_TIME_DATETIME = 0,  // 10/14 11:30
+    VROOM_CROSSHAIR_TIME_TIME     = 1,  // 11:30
+    VROOM_CROSSHAIR_TIME_DATE     = 2,  // Oct 14
+} VroomCrosshairTimeFormat;
+
+// Colors come from the theme (crosshair lines, crosshair target fill, badge text)
+// unless badge_color / badge_text override the badge fill / text.
+// A zero-initialized struct is the advanced crosshair as it has always looked.
+typedef struct VroomCrosshairStyle {
+    int32_t mode;           // VroomCrosshairMode
+    int32_t line_style;     // VroomCrosshairLineStyle; < 0 => solid in simple, dashed otherwise
+    float   line_width_px;  // <= 0 => 1
+    int32_t time_format;    // VroomCrosshairTimeFormat; < 0 => time in simple, datetime otherwise
+    int32_t hour12;         // 1 = 11:30 AM
+    float   simple_height;  // simple: badge top as a fraction of chart height (1 = top); < 0 => 1
+    int32_t dim_ahead;      // simple: dim the plot right of the line
+    float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
+    uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
+    uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT
+} VroomCrosshairStyle;
+
+// Replaces the crosshair style. A null style restores the zero-initialized
+// default.
+void vroom_chart_set_crosshair_style(VroomChart* chart, const VroomCrosshairStyle* style);
 
 // ---- Crosshair plus button (order entry) ----------------------------------
 
@@ -457,7 +498,9 @@ typedef enum {
     // the TypeScript theme maps hardcode the indices below it.
     VROOM_COLOR_RESERVED_7_,
     // Text drawn on a filled badge: the current-price indicator, the crosshair's
-    // axis badges, and price-line pills. Defaults to white.
+    // axis badges, and price-line pills. Defaults to white. Each of those can
+    // override it (VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT, the crosshair style's
+    // badge_text, VroomPriceLine::badge_text).
     VROOM_COLOR_BADGE_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
@@ -470,6 +513,7 @@ typedef enum {
     // The loading line. Its own alpha is honored, then scaled by the fade-in
     // and the stage-3 fade-out, so an opaque color here is the usual choice.
     VROOM_COLOR_SKELETON,
+    VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT,  // current-price badge text; 0 alpha => inherit BADGE_TEXT
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 
@@ -493,6 +537,13 @@ typedef enum {
     VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
     VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
     VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
+    // The current-price indicator's dashed line. Dash and gap are the visible
+    // lengths, round caps included (see price_indicator.h).
+    VROOM_FLOAT_PRICE_INDICATOR_DASH_PX,    // dash length px
+    VROOM_FLOAT_PRICE_INDICATOR_GAP_PX,     // gap px; 0 draws a solid line
+    VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px
+    VROOM_FLOAT_PRICE_INDICATOR_OPACITY,    // 0..1, multiplies the accent's alpha
+    VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP,  // 0/1: round the dash ends
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -561,6 +612,14 @@ void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 // both 1 = line. Driven per-frame by the host animation loop; set_chart_type
 // snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
+
+// Blends the current-price line's style (the PRICE_INDICATOR_* keys) and the
+// line and badge's accent color into whatever the theme sets next, over a
+// candle↔line morph heading to `mode` (0 = candles, 1 = line). Call it before
+// pushing the new theme. The blend rides set_morph's `fade` from where it
+// stands now, and set_chart_type ends it. Without this call a price-line theme
+// change snaps.
+void vroom_chart_begin_price_indicator_morph(VroomChart* chart, int32_t mode);
 
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.

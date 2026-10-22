@@ -458,7 +458,7 @@ class WebChart {
     vroom_chart_set_liquidity(chart_, out.data(), n, &style);
   }
   // `cfg` is a JS object { lines: [{price, color, width, lineStyle, text,
-  // quantity, flags}, ...], bodyBg, fontSizePx, lineLengthFrac, align,
+  // quantity, flags, badgeText}, ...], bodyBg, fontSizePx, lineLengthFrac, align,
   // hoverBoost, cornerRadiusPx }.
   void setPriceLines(const em::val& cfg) {
     em::val lines = cfg["lines"];
@@ -478,6 +478,7 @@ class WebChart {
       out[i].text = texts[i].c_str();
       out[i].quantity = quantities[i].c_str();
       out[i].flags = l["flags"].as<int32_t>();
+      out[i].badge_text = l["badgeText"].as<uint32_t>();
     }
     VroomPriceLineStyle style{};
     style.body_bg = cfg["bodyBg"].as<uint32_t>();
@@ -570,6 +571,22 @@ class WebChart {
     s.corner_radius_px = cfg["cornerRadiusPx"].as<float>();
     s.hover_boost = cfg["hoverBoost"].as<float>();
     vroom_chart_set_crosshair_button(chart_, &s);
+  }
+  // `cfg` is { mode, lineStyle, lineWidthPx, timeFormat, hour12, simpleHeight,
+  // dimAhead, dimOpacity, badgeColor, badgeText }.
+  void setCrosshairStyle(const em::val& cfg) {
+    VroomCrosshairStyle s{};
+    s.mode = cfg["mode"].as<int32_t>();
+    s.line_style = cfg["lineStyle"].as<int32_t>();
+    s.line_width_px = cfg["lineWidthPx"].as<float>();
+    s.time_format = cfg["timeFormat"].as<int32_t>();
+    s.hour12 = cfg["hour12"].as<bool>() ? 1 : 0;
+    s.simple_height = cfg["simpleHeight"].as<float>();
+    s.dim_ahead = cfg["dimAhead"].as<bool>() ? 1 : 0;
+    s.dim_opacity = cfg["dimOpacity"].as<float>();
+    s.badge_color = cfg["badgeColor"].as<uint32_t>();
+    s.badge_text = cfg["badgeText"].as<uint32_t>();
+    vroom_chart_set_crosshair_style(chart_, &s);
   }
   void setCrosshairButtonState(bool hovered, bool pinned) {
     vroom_chart_set_crosshair_button_state(chart_, hovered ? 1 : 0,
@@ -899,6 +916,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("hitTestFootprint", &WebChart::hitTestFootprint)
       .function("setFootprintHover", &WebChart::setFootprintHover)
       .function("setCrosshairButton", &WebChart::setCrosshairButton)
+      .function("setCrosshairStyle", &WebChart::setCrosshairStyle)
       .function("setCrosshairButtonState", &WebChart::setCrosshairButtonState)
       .function("getCrosshairButton", &WebChart::getCrosshairButton)
       .function("hitTestCrosshairButton", &WebChart::hitTestCrosshairButton)

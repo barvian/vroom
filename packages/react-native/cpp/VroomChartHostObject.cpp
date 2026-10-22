@@ -52,6 +52,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceScaleMode"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
@@ -96,6 +97,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestFootprint"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFootprintHover"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButton"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairStyle"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButtonState"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairButton"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestCrosshairButton"));
@@ -233,7 +235,11 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   auto dataFactoryObj = dataFactory.asObject(rt);
   auto imageFactoryObj = imageFactory.asObject(rt);
   auto fromBytes = dataFactoryObj.getPropertyAsFunction(rt, "fromBytes");
-  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, "MakeImage");
+  // RN-Skia 3.x renamed MakeImage to MakeRasterImage.
+  const char* makeImageName = imageFactoryObj.hasProperty(rt, "MakeRasterImage")
+                                  ? "MakeRasterImage"
+                                  : "MakeImage";
+  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, makeImageName);
 
   auto skData =
       fromBytes.callWithThis(rt, dataFactoryObj, bytesLike(rt, std::move(pixels)));
@@ -445,6 +451,24 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           vroom_chart_set_morph(chart_,
                                 static_cast<float>(args[0].asNumber()),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "beginPriceIndicatorMorph") {
+    // beginPriceIndicatorMorph(mode) — blend the price line's style into the
+    // next theme over the candle↔line morph heading to `mode`.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_begin_price_indicator_morph(
+              chart_, static_cast<int32_t>(args[0].asNumber()));
           return jsi::Value::undefined();
         });
   }
@@ -1394,7 +1418,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setPriceLines") {
     // setPriceLines({ lines: [{ price, color, width, lineStyle, text, quantity,
-    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
+    // flags, badgeText }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
     // cornerRadiusPx }) —
     // replaces the full set of price status lines. No render; the next render()
     // picks it up.
@@ -1434,6 +1458,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
             lines[i].quantity = quantities[i].c_str();
             lines[i].flags = static_cast<int32_t>(
                 l.getProperty(rt2, "flags").asNumber());
+            lines[i].badge_text = static_cast<uint32_t>(
+                l.getProperty(rt2, "badgeText").asNumber());
           }
           VroomPriceLineStyle style{};
           style.body_bg = static_cast<uint32_t>(
@@ -1652,6 +1678,39 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.corner_radius_px = static_cast<float>(num("cornerRadiusPx"));
           s.hover_boost = static_cast<float>(num("hoverBoost"));
           vroom_chart_set_crosshair_button(chart_, &s);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setCrosshairStyle") {
+    // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
+    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText }). No render; the next render()
+    // picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setCrosshairStyle"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto cfg = args[0].asObject(rt2);
+          auto num = [&](const char* key) {
+            return cfg.getProperty(rt2, key).asNumber();
+          };
+          VroomCrosshairStyle s{};
+          s.mode = static_cast<int32_t>(num("mode"));
+          s.line_style = static_cast<int32_t>(num("lineStyle"));
+          s.line_width_px = static_cast<float>(num("lineWidthPx"));
+          s.time_format = static_cast<int32_t>(num("timeFormat"));
+          s.hour12 = cfg.getProperty(rt2, "hour12").getBool() ? 1 : 0;
+          s.simple_height = static_cast<float>(num("simpleHeight"));
+          s.dim_ahead = cfg.getProperty(rt2, "dimAhead").getBool() ? 1 : 0;
+          s.dim_opacity = static_cast<float>(num("dimOpacity"));
+          s.badge_color = static_cast<uint32_t>(num("badgeColor"));
+          s.badge_text = static_cast<uint32_t>(num("badgeText"));
+          vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });
   }

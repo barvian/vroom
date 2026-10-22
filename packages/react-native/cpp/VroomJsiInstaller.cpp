@@ -7,8 +7,10 @@
 //       setSize(w, h, pxRatio)
 //       render() -> SkPicture (iOS) / SkImage (Android)
 //
-// The host object's lifetime is managed by JS GC — when the React component
-// drops its reference, the underlying VroomChart is destroyed.
+// The host object's lifetime is managed by GC — when the React component
+// drops its reference, the underlying VroomChart is destroyed. On iOS the UI
+// runtime holds one too while it draws the chart's frames, so the chart lives
+// until both let go.
 
 #include "VroomJsiInstaller.h"
 

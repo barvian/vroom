@@ -17,7 +17,8 @@ RCT_EXPORT_MODULE(VroomChartModule)
 // before the module object reaches JS — so global.VroomChartJSI always exists
 // by the time anything imports NativeVroomChart.
 //
-// callInvoker is unused: every chart call is synchronous on the JS thread.
+// callInvoker is unused: every chart call is synchronous on the calling
+// thread, JS or (for frames) UI.
 - (void)installJSIBindingsWithRuntime:(jsi::Runtime &)runtime
                           callInvoker:(const std::shared_ptr<react::CallInvoker> &)callInvoker
 {

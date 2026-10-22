@@ -1,6 +1,7 @@
 #include "doctest.h"
 
 #include <cmath>
+#include <initializer_list>
 
 #include "loading_wave.h"
 

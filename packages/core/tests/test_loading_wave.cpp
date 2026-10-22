@@ -1,7 +1,6 @@
 #include "doctest.h"
 
 #include <cmath>
-#include <set>
 
 #include "loading_wave.h"
 
@@ -11,18 +10,13 @@ using vroom::loading_wave::kAmplitudeFrac;
 using vroom::loading_wave::kBreathMax;
 using vroom::loading_wave::kBreathMin;
 using vroom::loading_wave::kDriftRadPerSecond;
-using vroom::loading_wave::kHarmonicCount;
-using vroom::loading_wave::kHarmonics;
+using vroom::loading_wave::kFreq;
 using vroom::loading_wave::kPeriodSeconds;
 using vroom::loading_wave::kTwoPi;
 using vroom::loading_wave::sample_count;
 using vroom::loading_wave::y_frac;
 
-TEST_CASE("the weights sum to one so the offset stays in -1..1") {
-    float total = 0.f;
-    for (int i = 0; i < kHarmonicCount; ++i) total += kHarmonics[i].weight;
-    CHECK(total == doctest::Approx(1.f));
-
+TEST_CASE("the offset stays in -1..1") {
     for (int xi = 0; xi <= 60; ++xi) {
         for (int ti = 0; ti <= 60; ++ti) {
             const float v = at(static_cast<float>(ti) * 0.43f,
@@ -33,35 +27,11 @@ TEST_CASE("the weights sum to one so the offset stays in -1..1") {
     }
 }
 
-TEST_CASE("no component is a harmonic of another") {
-    // The whole point of summing sines is that they never lock into one
-    // repeating shape. Integer frequency ratios would do exactly that, so
-    // guard them.
-    for (int i = 0; i < kHarmonicCount; ++i) {
-        for (int j = i + 1; j < kHarmonicCount; ++j) {
-            const float ratio = kHarmonics[j].freq / kHarmonics[i].freq;
-            const float nearest = std::round(ratio);
-            CHECK(std::fabs(ratio - nearest) > 0.05f);
-        }
-    }
-}
-
-TEST_CASE("the components drift at different rates") {
-    // Equal drifts would slide one rigid shape across the plot, which is the
-    // single-sine look this replaced.
-    std::set<float> drifts;
-    for (int i = 0; i < kHarmonicCount; ++i) drifts.insert(kHarmonics[i].drift);
-    CHECK(drifts.size() == static_cast<std::size_t>(kHarmonicCount));
-}
-
 TEST_CASE("the curve travels toward the left") {
-    // Each component's phase is (k*x + w*t), so a feature at x after dt sits
-    // further left. Checking the carrier alone is enough to fix the direction.
-    const auto& carrier = kHarmonics[0];
+    // The phase is (k*x + w*t), so a feature at x after dt sits further left.
     const float dt = 0.5f;
-    const float x0 = (kTwoPi * 0.25f) / carrier.freq;
-    const float x1 = (kTwoPi * 0.25f -
-                      carrier.drift * kDriftRadPerSecond * dt) / carrier.freq;
+    const float x0 = (kTwoPi * 0.25f) / kFreq;
+    const float x1 = (kTwoPi * 0.25f - kDriftRadPerSecond * dt) / kFreq;
     CHECK(x1 < x0);
 }
 
@@ -71,8 +41,7 @@ TEST_CASE("the curve and breath hold their reference values") {
     for (float t : {0.f, 0.7f, 3.1f, 11.f}) {
         for (int xi = 0; xi <= 20; ++xi) {
             const float x = static_cast<float>(xi) / 20.f;
-            const float ref = std::sin(x * 6.3f + t) * 0.65f +
-                              std::sin(x * 11.2f + t * 1.3f) * 0.35f;
+            const float ref = std::sin(x * 6.3f + t);
             CHECK(at(t, x) == doctest::Approx(ref).epsilon(0.001));
             CHECK(y_frac(t, x) ==
                   doctest::Approx(0.5f + 0.07f * ref).epsilon(0.001));
@@ -84,8 +53,7 @@ TEST_CASE("the curve and breath hold their reference values") {
 }
 
 TEST_CASE("a full period returns the whole curve to where it started") {
-    // This is what makes wrapping the phase clock seamless. It only holds
-    // because the drifts are commensurate; if that changes, this catches it.
+    // This is what makes wrapping the phase clock seamless.
     for (int xi = 0; xi <= 24; ++xi) {
         const float x = static_cast<float>(xi) / 24.f;
         const float ref = at(0.31f, x);
@@ -97,8 +65,8 @@ TEST_CASE("a full period returns the whole curve to where it started") {
 }
 
 TEST_CASE("the curve undulates gently, not as a lone swell or noise") {
-    // Count local extremes across the plot: a crest or two, never a flat arc
-    // and never jitter.
+    // Count local extremes across the plot: a crest and a trough or so, never
+    // a flat arc and never jitter.
     const auto extremes = [](float t) {
         int n = 0;
         float prev = 0.f;
@@ -115,25 +83,7 @@ TEST_CASE("the curve undulates gently, not as a lone swell or noise") {
     for (int i = 0; i <= 10; ++i) {
         const int n = extremes(kPeriodSeconds * static_cast<float>(i) / 11.f);
         CHECK(n >= 2);
-        CHECK(n <= 8);
-    }
-}
-
-TEST_CASE("the shape keeps rearranging within a period") {
-    // A rigid travelling shape would reproduce its t=0 profile at some later
-    // offset. Sample the whole curve at intervals through one period and check
-    // no two profiles match.
-    const auto profile_distance = [](float ta, float tb) {
-        float worst = 0.f;
-        for (int xi = 0; xi <= 40; ++xi) {
-            const float x = static_cast<float>(xi) / 40.f;
-            worst = std::max(worst, std::fabs(at(ta, x) - at(tb, x)));
-        }
-        return worst;
-    };
-    for (int i = 1; i <= 12; ++i) {
-        const float t = kPeriodSeconds * static_cast<float>(i) / 13.f;
-        CHECK(profile_distance(0.f, t) > 0.05f);
+        CHECK(n <= 3);
     }
 }
 
@@ -197,16 +147,15 @@ TEST_CASE("a still curve sits mid-breath") {
 TEST_CASE("the drift is slow enough to read as waiting") {
     // Regression guard on feel: two earlier revisions ran several times this
     // fast and read as frantic.
-    const float cross_seconds =
-        kHarmonics[0].freq / (kHarmonics[0].drift * kDriftRadPerSecond);
+    const float cross_seconds = kFreq / kDriftRadPerSecond;
     CHECK(cross_seconds > 4.f);
     CHECK(cross_seconds < 20.f);
 }
 
-TEST_CASE("sample_count resolves the finest component at any width") {
+TEST_CASE("sample_count resolves the sine at any width") {
     // The floor is the point of this function: even a narrow chart has to
-    // carry enough vertices that the tightest harmonic isn't aliased away.
-    const float crests = vroom::loading_wave::max_freq() / kTwoPi;
+    // carry enough vertices that the sine isn't aliased away.
+    const float crests = kFreq / kTwoPi;
     for (float w : {-100.f, 0.f, 120.f, 480.f, 1280.f, 4000.f, 100000.f}) {
         CHECK(static_cast<float>(sample_count(w)) >=
               crests * vroom::loading_wave::kSamplesPerCycle);
@@ -214,15 +163,9 @@ TEST_CASE("sample_count resolves the finest component at any width") {
 }
 
 TEST_CASE("sample_count grows with width but stays bounded") {
-    CHECK(sample_count(1600.f) > sample_count(400.f));
+    CHECK(sample_count(320.f) > sample_count(160.f));
     CHECK(sample_count(100000.f) == sample_count(200000.f));
     CHECK(sample_count(100000.f) < 400);  // cheap enough to spline every frame
-}
-
-TEST_CASE("max_freq finds the tightest component") {
-    for (int i = 0; i < kHarmonicCount; ++i) {
-        CHECK(kHarmonics[i].freq <= vroom::loading_wave::max_freq());
-    }
 }
 
 namespace {

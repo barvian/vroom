@@ -96,8 +96,7 @@ detected automatically; on React Native, pass it through `reduceMotion`.
 ## Why it looks the way it does
 
 The line is adapted from [Liveline](https://github.com/benjitaylor/liveline)'s
-loading state: two sine waves summed, at frequencies that aren't multiples of
-one another and each drifting leftward at its own rate. A single sine reads as
-a test pattern — the repeat is too easy to find — while the sum keeps
-rearranging itself. It's drawn at `lineWidth`, through the same monotone spline
-the line chart uses, so in line mode the hand-off has no renderer seam to hide.
+loading state, as a single sine wave drifting leftward: a hint that the chart
+is alive, kept small and faint so it doesn't compete with the data about to
+replace it. It's drawn at `lineWidth`, through the same monotone spline the
+line chart uses, so in line mode the hand-off has no renderer seam to hide.

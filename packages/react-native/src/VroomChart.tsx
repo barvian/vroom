@@ -330,8 +330,9 @@ export function VroomChart(props: VroomChartProps) {
   // JS is dropped and the UI thread draws the core as it is now instead, so
   // the SharedValues only ever have one writer and never step back a frame.
   const applyFrame = useCallback(
-    (frame: ChartFrame) => {
+    (frame: ChartFrame | null) => {
       if (requestUiFrames.current) requestUiFrames.current();
+      else if (!frame) return;
       else if (isSkImage(frame)) imageSV.value = frame;
       else pictureSV.value = frame;
       reanchorPlus();
@@ -399,6 +400,7 @@ export function VroomChart(props: VroomChartProps) {
     });
   }, [handle, pictureSV, plusOpenSV, uiLoopState, reanchorPlus]);
   requestUiFrames.current = uiFrames;
+  useEffect(() => handle?.setGestureFrames(!uiFrames), [handle, uiFrames]);
   useEffect(
     () => () => {
       uiLoopState.value = LOOP_STOPPED;
@@ -484,7 +486,7 @@ export function VroomChart(props: VroomChartProps) {
     closePlusRef.current(false);
     crosshairActive.current = false;
     const ch = handle.clearCrosshair();
-    if (ch) applyFrame(ch);
+    applyFrame(ch);
     lastCrosshairKey.current = null;
     onCrosshair?.(crosshairEvent(null, 'hide'));
   }, [crosshairMode, handle, applyFrame, onCrosshair]);
@@ -941,7 +943,7 @@ export function VroomChart(props: VroomChartProps) {
         // dot/horizontal line stay lifted `crosshairOffset` px above the
         // fingertip, and read whichever pane they land in.
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-        if (ch) applyFrame(ch);
+        applyFrame(ch);
         // The line follows the finger every frame (above), but only notify the
         // host when what it reports changes: the slot (which has a timeMs even
         // in the empty space ahead of the last candle), the price, or the
@@ -959,7 +961,7 @@ export function VroomChart(props: VroomChartProps) {
         // (axes follow). Diagonal works naturally.
         next = handle.translate(e.changeX, e.changeY);
       }
-      if (next) applyFrame(next);
+      applyFrame(next);
       maybeStartAnim();
     })
     .onEnd((e) => {
@@ -1001,7 +1003,7 @@ export function VroomChart(props: VroomChartProps) {
         velocity *= Math.pow(0.5, dt / HALF_LIFE_S);
         const dx = velocity * dt;
         const next = handle.pan(dx, 0);
-        if (next) applyFrame(next);
+        applyFrame(next);
         maybeStartAnim();
 
         if (Math.abs(velocity) > MIN_STOP) {
@@ -1078,7 +1080,7 @@ export function VroomChart(props: VroomChartProps) {
       if (frameX === 1 && frameY === 1) return;
 
       const next = handle.zoom(frameX, frameY, focalX, focalY);
-      if (next) applyFrame(next);
+      applyFrame(next);
       maybeStartAnim();
     });
 
@@ -1105,7 +1107,7 @@ export function VroomChart(props: VroomChartProps) {
       dismissFootprint(false);
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-      if (ch) applyFrame(ch);
+      applyFrame(ch);
       const ev = crosshairEvent(handle.getCrosshairInfo(), 'show');
       lastCrosshairKey.current = `${ev.timeMs}|${ev.price}|${ev.indicator?.value ?? ''}`;
       onCrosshair?.(ev);
@@ -1175,7 +1177,7 @@ export function VroomChart(props: VroomChartProps) {
       if (tapRegion !== 'chart' && tapRegion !== 'indicator') return;
       crosshairActive.current = false;
       const ch = handle.clearCrosshair();
-      if (ch) applyFrame(ch);
+      applyFrame(ch);
       lastCrosshairKey.current = null;
       onCrosshair?.(crosshairEvent(null, 'hide'));
     });

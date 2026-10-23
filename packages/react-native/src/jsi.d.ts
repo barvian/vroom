@@ -178,6 +178,12 @@ export interface ChartHandle {
    */
   scaleTimeAxis(dx: number): ChartFrame | null;
   /**
+   * Whether pan, translate, zoom, the axis scales and the crosshair calls
+   * render a frame to return (default true). Off, they return null: for when
+   * the UI thread draws every frame anyway.
+   */
+  setGestureFrames(on: boolean): void;
+  /**
    * Current axis dimensions in pixels for hit testing in JS gestures.
    * `indicatorHeight` is the below-chart indicator pane height (0 when none).
    */

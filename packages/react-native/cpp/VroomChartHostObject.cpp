@@ -71,6 +71,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
   out.push_back(jsi::PropNameID::forAscii(rt, "scalePriceAxis"));
   out.push_back(jsi::PropNameID::forAscii(rt, "scaleTimeAxis"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setGestureFrames"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getAxisMetrics"));
   out.push_back(jsi::PropNameID::forAscii(rt, "isAnimating"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
@@ -295,9 +296,30 @@ jsi::Function ChartHostObject::lockedFunction(jsi::Runtime& rt,
       });
 }
 
+jsi::Value ChartHostObject::gestureFrame(jsi::Runtime& rt) {
+  if (!gestureFrames_) return jsi::Value::null();
+  return wrapPicture(rt, render_chart_picture(chart_), chart_->px_ratio);
+}
+
 jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                                 const jsi::PropNameID& propName) {
   const std::string name = propName.utf8(rt);
+
+  if (name == "setGestureFrames") {
+    // setGestureFrames(on) — whether the gesture calls render a frame to
+    // return. Off when another runtime draws every frame anyway.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setGestureFrames"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count >= 1) gestureFrames_ = args[0].getBool();
+          return jsi::Value::undefined();
+        });
+  }
 
   if (name == "setCandles") {
     return lockedFunction(
@@ -748,8 +770,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_pan(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -768,8 +789,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_translate(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -791,8 +811,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float fx = static_cast<float>(args[2].asNumber());
           const float fy = static_cast<float>(args[3].asNumber());
           vroom_chart_zoom(chart_, sx, sy, fx, fy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -808,8 +827,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dy = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_price_axis(chart_, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -825,8 +843,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dx = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_time_axis(chart_, dx);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -877,8 +894,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float x = static_cast<float>(args[0].asNumber());
           const float y = static_cast<float>(args[1].asNumber());
           vroom_chart_set_crosshair(chart_, x, y);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -893,8 +909,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_clear_crosshair(chart_);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 

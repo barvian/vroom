@@ -39,7 +39,10 @@ class ChartHostObject : public facebook::jsi::HostObject {
       unsigned int paramCount,
       Fn fn);
 
+  facebook::jsi::Value gestureFrame(facebook::jsi::Runtime& runtime);
+
   VroomChart* chart_ = nullptr;
+  bool gestureFrames_ = true;
   // VroomChart calls in from both the JS and the UI runtime, and the core
   // isn't thread-safe.
   std::mutex mutex_;

@@ -17,7 +17,7 @@
 // are rasterized through RN-Skia's JS API, which the UI runtime doesn't have.
 // Gestures run on the JS thread for now (`runOnJS(true)`).
 
-import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { PixelRatio, Platform, View, type LayoutChangeEvent } from 'react-native';
 import {
   AlphaType,
@@ -201,13 +201,25 @@ export function VroomChart(props: VroomChartProps) {
   const width = widthProp ?? measured.width;
   const height = heightProp ?? measured.height;
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = Math.round(e.nativeEvent.layout.width);
-    const h = Math.round(e.nativeEvent.layout.height);
+  const applySize = useCallback((layoutWidth: number, layoutHeight: number) => {
+    const w = Math.round(layoutWidth);
+    const h = Math.round(layoutHeight);
     setMeasured((prev) =>
       prev.width === w && prev.height === h ? prev : { width: w, height: h },
     );
   }, []);
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => applySize(e.nativeEvent.layout.width, e.nativeEvent.layout.height),
+    [applySize],
+  );
+  // The New Architecture measures synchronously, so the first frame can be
+  // drawn before the first paint. onLayout alone arrives as an event, which a
+  // JS thread busy mounting the rest of a screen can hold back for frames.
+  const viewRef = useRef<View>(null);
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    view?.measureLayout(view, (_x, _y, w, h) => applySize(w, h));
+  }, [applySize]);
 
   // The close button is callback-gated, so whether a handler exists is part of
   // what gets rendered.
@@ -1180,7 +1192,7 @@ export function VroomChart(props: VroomChartProps) {
       ]}
     >
       <GestureDetector gesture={gesture}>
-        <View style={{ flex: 1 }}>
+        <View ref={viewRef} style={{ flex: 1 }}>
           <Canvas style={{ flex: 1 }}>
             {width > 0 && height > 0 ? (
               <>

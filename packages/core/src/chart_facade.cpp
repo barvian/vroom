@@ -501,6 +501,10 @@ static void capture_morph(VroomChart* chart) {
 
 extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
     if (!chart) return;
+    // A timeframe switch replaces the data the loading line was resolving
+    // onto, so the hand-off is over.
+    chart->loading_line_revealing = false;
+    chart->loading_line.clear();
     capture_morph(chart);
     if (chart->morph_from.empty()) return;
 
@@ -543,6 +547,7 @@ extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
 
     chart->morph_is_stream = true;
     chart->interval_morph_t = 0.f;
+    chart->loading_reveal_drives_morph = false;
 }
 
 extern "C" void vroom_chart_set_loading(VroomChart* chart, int32_t on,
@@ -570,6 +575,7 @@ extern "C" void vroom_chart_begin_loading_reveal(VroomChart* chart) {
 extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (!chart) return;
     chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
+    chart->loading_reveal_drives_morph = false;
     if (chart->interval_morph_t >= 1.f) {
         chart->morph_from.clear();
         chart->morph_from.shrink_to_fit();
@@ -577,11 +583,6 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
         chart->morph_lines.shrink_to_fit();
         chart->interval_morph_fade = false;
         chart->morph_is_stream = false;
-        // The loading line rides this same clock out (see draw_chart 5.9), so
-        // it has to be released here too or it would hang over a settled chart.
-        chart->loading_line_revealing = false;
-        chart->loading_line.clear();
-        chart->loading_line.shrink_to_fit();
     }
     chart->mark_dirty();
 }

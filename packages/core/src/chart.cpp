@@ -1208,7 +1208,11 @@ void VroomChart::set_loading(bool on, bool animate) {
 
     // Either direction abandons any hand-off in flight. Going false without
     // passing through the two stages is the cancel path (fetch failed, asset
-    // switched again mid-load), and it should leave nothing behind.
+    // switched again mid-load), and it should leave nothing behind — including
+    // bars the reveal's clock was still growing, which nothing else would land.
+    if (loading_line_revealing && loading_reveal_drives_morph) {
+        vroom_chart_set_interval_morph(this, 1.f);
+    }
     loading_line.clear();
     loading_line_t = 1.f;
     loading_line_revealing = false;

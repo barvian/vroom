@@ -25,10 +25,8 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0xff26a69a,  // ACCENT_BULL — classic teal-green (price indicator, volume, MACD)
     0xffef5350,  // ACCENT_BEAR — classic red
     0xff8957e5,  // LINE — line-chart close polyline; violet, matching the RSI line
-    // SKELETON — transparent sentinel: inherit GRID, the way BORDER_BULL and
-    // the wick colors inherit their fills. The gridlines are already the
-    // chart's tone for structure rather than data, which is what the loading
-    // line is, so matching them keeps it from being read as a series.
+    // SKELETON — transparent sentinel: inherit AXIS_TEXT, the way BORDER_BULL
+    // and the wick colors inherit their fills. The breath keeps it faint.
     0x00000000,
     0x00000000,  // PRICE_INDICATOR_BADGE_TEXT — transparent sentinel: inherit BADGE_TEXT
 };

@@ -708,30 +708,32 @@ void vroom_chart_begin_stream_morph(VroomChart* chart);
 // chart is allowed to go idle instead of pinning a redraw loop.
 //
 // Passing 0 abandons any hand-off in flight, which is what a failed or
-// superseded fetch wants. To hand off to data instead, use the two stages
+// superseded fetch wants. To hand off to data instead, use the hand-off calls
 // below.
 void vroom_chart_set_loading(VroomChart* chart, int32_t on, int32_t animate);
 
-// Hand-off stage one: reshapes the line into the series. Freezes the sine where
-// it is and aims each vertex at the vertical centre of the candle that will
-// occupy its column, so the line resolves into the silhouette of the data.
+// Starts the hand-off: aims each vertex of the line at the close of the candle
+// that will occupy its column.
 //
-// Call *after* set_candles — it reads them to know where to aim — then drive
-// vroom_chart_set_loading_morph from 0 to 1. The axes and the candles stay
-// suppressed throughout; stage two brings them in. No-op if the line isn't up.
+// Call *after* set_candles — it reads them to know where to aim — then
+// vroom_chart_begin_loading_reveal. Optionally drive
+// vroom_chart_set_loading_morph from 0 to 1 in between to reshape the line onto
+// the closes first, under a frozen sine; the axes and candles stay suppressed
+// while you do. No-op if the line isn't up.
 void vroom_chart_begin_loading_morph(VroomChart* chart);
 
-// Advances stage one. `t` (clamped to 0..1) is the eased progress: 0 renders the
-// frozen sine, 1 the polyline through the candle centres.
+// Optional reshape before the reveal. `t` (clamped to 0..1) is the eased
+// progress: 0 renders the frozen sine, 1 the polyline through the candle closes.
 void vroom_chart_set_loading_morph(VroomChart* chart, float t);
 
-// Hand-off stage two: the candles take over. Captures each one collapsed onto
-// its own vertical centre at zero alpha and leaves the loading state, so the
-// bars grow outward from the line and their color fades up as it fades out.
+// The candles take over. Leaves the loading state and runs the reveal on the
+// core's own clock (about 0.9s): the line resolves onto the closes, centre
+// first, while the bars grow out of it and their color fades up. Over candles
+// the line gives way to them; in line mode it becomes the series line.
 //
-// Call once stage one has reached 1, then drive vroom_chart_set_interval_morph
-// from 0 to 1 as usual — the line's fade-out rides that same clock, so the two
-// finish together. No-op if the line isn't up.
+// Keep rendering while vroom_chart_is_animating is true. Driving
+// vroom_chart_set_interval_morph yourself takes the bars off the reveal's
+// clock. No-op if the line isn't up.
 void vroom_chart_begin_loading_reveal(VroomChart* chart);
 
 // Advances the morph started by either begin_*_morph above. `t` (clamped to

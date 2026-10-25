@@ -24,9 +24,9 @@ struct PriceBounds;
 namespace vroom::price_indicator {
 
 // Draws the line at the latest close's y, from the left edge to the price
-// badge when that badge is drawn, otherwise to `candle_right`, but never past
-// `tip_left`: the line chart's tip dot sits on that close, so the line ends on
-// its left edge rather than running through or beyond it. `candle_area_h`
+// badge when that badge is drawn, otherwise to `candle_right`. When the line
+// chart's tip dot draws, it sits on that close, so the line ends on `tip_left`,
+// the dot's left edge, instead: never past the dot or short of it. `candle_area_h`
 // is the y of the x-axis separator; the indicator is skipped if the close maps
 // outside [0, candle_area_h].
 //

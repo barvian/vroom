@@ -13,6 +13,7 @@
 #include "include/effects/SkDashPathEffect.h"
 #pragma clang diagnostic pop
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -94,12 +95,13 @@ uint32_t draw(SkCanvas* canvas,
         text_w = font.measureText(buf, len, SkTextEncoding::kUTF8);
     }
 
-    // Meet the badge when it will draw. Otherwise stop at the plot edge.
-    const float line_right = std::min(
-        join_badge ? vroom::labels::axis_badge_left(lay.width_px,
-                                                    lay.y_axis_width_px, text_w)
-                   : candle_right,
-        tip_left);
+    // Meet the tip dot when it draws, else the badge when that will draw.
+    // Otherwise stop at the plot edge.
+    const float line_right =
+        std::isfinite(tip_left) ? tip_left
+        : join_badge ? vroom::labels::axis_badge_left(lay.width_px,
+                                                      lay.y_axis_width_px, text_w)
+                     : candle_right;
     const auto style = vroom::price_indicator_style::current(
         chart.price_indicator_morph, chart.theme, chart.morph_fade);
     const auto iv = vroom::price_indicator_dash::intervals(

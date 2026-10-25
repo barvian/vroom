@@ -1715,8 +1715,9 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setCrosshairStyle") {
     // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
-    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText }). No render; the next render()
-    // picks it up.
+    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText, simpleFontPx,
+    // simpleLineHeightPx, simplePadXPx, simplePadYPx, simpleRadiusPx }). No
+    // render; the next render() picks it up.
     return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshairStyle"),
@@ -1741,6 +1742,11 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.dim_opacity = static_cast<float>(num("dimOpacity"));
           s.badge_color = static_cast<uint32_t>(num("badgeColor"));
           s.badge_text = static_cast<uint32_t>(num("badgeText"));
+          s.simple_font_px = static_cast<float>(num("simpleFontPx"));
+          s.simple_line_height_px = static_cast<float>(num("simpleLineHeightPx"));
+          s.simple_pad_x_px = static_cast<float>(num("simplePadXPx"));
+          s.simple_pad_y_px = static_cast<float>(num("simplePadYPx"));
+          s.simple_radius_px = static_cast<float>(num("simpleRadiusPx"));
           vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });

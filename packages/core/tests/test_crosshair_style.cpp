@@ -14,6 +14,9 @@ VroomCrosshairStyle unset(int32_t mode) {
     s.time_format = -1;
     s.simple_height = -1.f;
     s.dim_opacity = -1.f;
+    s.simple_pad_x_px = -1.f;
+    s.simple_pad_y_px = -1.f;
+    s.simple_radius_px = -1.f;
     return s;
 }
 
@@ -55,6 +58,9 @@ TEST_CASE("crosshair_style::resolve") {
         CHECK(s.time_format == VROOM_CROSSHAIR_TIME_TIME);
         CHECK(s.simple_height == doctest::Approx(1.f));
         CHECK(s.dim_opacity == doctest::Approx(0.35f));
+        CHECK(s.simple_pad_x_px == doctest::Approx(8.f));
+        CHECK(s.simple_pad_y_px == doctest::Approx(4.f));
+        CHECK(s.simple_radius_px == doctest::Approx(6.f));
     }
 
     SUBCASE("explicit values are kept, out-of-range ones clamped") {
@@ -64,7 +70,13 @@ TEST_CASE("crosshair_style::resolve") {
         in.time_format = VROOM_CROSSHAIR_TIME_DATE;
         in.simple_height = 1.5f;
         in.dim_opacity = 0.f;
+        in.simple_pad_x_px = 10.f;
+        in.simple_pad_y_px = 0.f;
+        in.simple_radius_px = 0.f;
         const auto s = cs::resolve(in);
+        CHECK(s.simple_pad_x_px == doctest::Approx(10.f));
+        CHECK(s.simple_pad_y_px == doctest::Approx(0.f));
+        CHECK(s.simple_radius_px == doctest::Approx(0.f));
         CHECK(s.line_style == VROOM_CROSSHAIR_LINE_DOTTED);
         CHECK(s.line_width_px == doctest::Approx(2.f));
         CHECK(s.time_format == VROOM_CROSSHAIR_TIME_DATE);

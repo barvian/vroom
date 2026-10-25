@@ -1305,6 +1305,22 @@ export type CrosshairConfig = {
     dimAhead?: boolean;
     /** Opacity of what `dimAhead` dims, 0 to 1. Default 0.35. */
     dimOpacity?: number;
+    /** Badge text size in px. Defaults to `theme.badgeFontSize`. */
+    badgeFontSize?: number;
+    /**
+     * Height of the badge's text box in px, centered on the text; the padding
+     * goes around it. Defaults to the text's own height.
+     */
+    badgeLineHeight?: number;
+    /** Badge padding left and right of the text, in px. Default 8. */
+    badgePaddingX?: number;
+    /** Badge padding above and below the text box, in px. Default 4. */
+    badgePaddingY?: number;
+    /**
+     * Badge corner radius in px. Default 6. Capped at half the badge's height,
+     * so `Infinity` draws a capsule.
+     */
+    badgeRadius?: number;
   };
 };
 

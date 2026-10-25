@@ -388,6 +388,11 @@ typedef struct VroomCrosshairStyle {
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
     uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
     uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT
+    float   simple_font_px;         // simple: badge text size; <= 0 => VROOM_FLOAT_BADGE_FONT_SIZE_PX
+    float   simple_line_height_px;  // simple: badge text box height; <= 0 => the glyphs' own
+    float   simple_pad_x_px;        // simple: badge padding left/right; < 0 => 8
+    float   simple_pad_y_px;        // simple: badge padding above/below; < 0 => 4
+    float   simple_radius_px;       // simple: badge corner radius; < 0 => 6; capped at half its height
 } VroomCrosshairStyle;
 
 // Replaces the crosshair style. A null style restores the zero-initialized

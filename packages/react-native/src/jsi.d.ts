@@ -562,6 +562,11 @@ export interface ChartHandle {
     badgeColor: number;
     /** Packed 0xAARRGGBB; 0 inherits the theme's badgeText. */
     badgeText: number;
+    simpleFontPx: number;
+    simpleLineHeightPx: number;
+    simplePadXPx: number;
+    simplePadYPx: number;
+    simpleRadiusPx: number;
   }): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the

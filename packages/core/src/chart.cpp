@@ -55,8 +55,8 @@
 
 namespace {
 constexpr SkColor kVwapLine = 0xff00bcd4;  // cyan
-// While the price axis shows, the series runs on under it, fading out from this
-// far inside the plot to the chart's right edge.
+// With Y_AXIS_FADE on and the price axis showing, the series runs on under it,
+// fading out from this far inside the plot to the chart's right edge.
 constexpr float kRightFadeOverhangPx = 11.25f;
 }  // namespace
 
@@ -334,7 +334,8 @@ vroom::IndexRange VroomChart::draw_range() const {
     int64_t end_ms = visible_end_ms;
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
-    if (lay.y_axis_opacity > 0.f && area_w > 0.f) {
+    if (theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f &&
+        area_w > 0.f) {
         end_ms += static_cast<int64_t>(
             static_cast<double>(visible_end_ms - visible_start_ms) *
             (lay.width_px - area_w) / area_w);
@@ -737,7 +738,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // overhangs the newest candle's center, which the pinned-to-latest framing
     // puts within a few pixels of that edge. It stops at the y-axis strip.
     const float tip_clip_right = width_px - lay.y_axis_width_px;
-    const bool right_fade = lay.y_axis_opacity > 0.f;
+    const bool right_fade =
+        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
     const float series_right = right_fade ? width_px : candle_right;
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
@@ -983,7 +985,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), width_px,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay),
+                         right_fade ? width_px : candle_right,
                          lay.x_axis_height_px),
         axis_bg);
     const float axis_block_w = width_px - candle_right;

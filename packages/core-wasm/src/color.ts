@@ -51,6 +51,7 @@ export const BOOL_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   lineTipDot: FloatKey.LineTipDot,
   lineTipPulse: FloatKey.LineTipPulse,
   priceIndicatorRoundCap: FloatKey.PriceIndicatorRoundCap,
+  yAxisFade: FloatKey.YAxisFade,
 };
 
 /**

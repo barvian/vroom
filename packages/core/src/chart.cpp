@@ -1046,7 +1046,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             canvas->translate(0.f, (candle_area_h * 0.5f - y) * price_slide);
         }
         price_indicator_accent = vroom::price_indicator::draw(
-            canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
+            canvas, *this, lay, bounds, plot_right, candle_area_h, price_from,
             morph_t);
         if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();

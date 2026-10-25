@@ -273,7 +273,8 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
         SkPaint dim;
         dim.setColor(colors[VROOM_COLOR_BACKGROUND]);
         dim.setAlphaf(1.f - style.dim_opacity);
-        canvas->drawRect(SkRect::MakeLTRB(cx, 0.f, candle_right, vline_bottom), dim);
+        canvas->drawRect(
+            SkRect::MakeLTRB(cx, 0.f, vroom::plot_right(lay), vline_bottom), dim);
     }
 
     SkFont font;

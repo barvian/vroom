@@ -327,9 +327,17 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
+    // The series runs on past the window into the gutter a hiding y-axis frees up.
+    int64_t end_ms = visible_end_ms;
+    const auto lay = layout();
+    const float area_w = vroom::candle_area_width(lay);
+    const float past = vroom::plot_right(lay) - area_w;
+    if (past > 0.f && area_w > 0.f) {
+        end_ms += static_cast<int64_t>(
+            static_cast<double>(visible_end_ms - visible_start_ms) * past / area_w);
+    }
     return vroom::draw_indices(candles.data(), candles.size(),
-                               visible_start_ms, visible_end_ms,
-                               candle_duration_ms);
+                               visible_start_ms, end_ms, candle_duration_ms);
 }
 
 vroom::IndexRange VroomChart::fit_range() const {
@@ -726,6 +734,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // overhangs the newest candle's center, which the pinned-to-latest framing
     // puts within a few pixels of that edge. It stops at the y-axis strip.
     const float tip_clip_right = width_px - lay.y_axis_width_px;
+    // Where the line series' clip stops; candles and volume have none.
+    const float plot_right = vroom::plot_right(lay);
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
@@ -805,7 +815,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, plot_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
                     fade * layer, morph_from.data(), morph_n, 0.f,
@@ -821,7 +831,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, plot_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
                     morph_from.data(), morph_n, 0.f,
@@ -866,7 +876,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             } else if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, plot_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], fade,
                     morph_src, morph_n_draw, morph_t,
@@ -921,7 +931,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, plot_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * series_line,
                     morph_src, morph_n_draw, morph_t,
@@ -969,13 +979,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), candle_right,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), plot_right,
                          lay.x_axis_height_px),
         axis_bg);
-    const float axis_block_w = width_px - candle_right;
     canvas->drawRect(
-        SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
-        axis_bg);
+        SkRect::MakeLTRB(plot_right, 0, width_px, height_px), axis_bg);
 
     // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
     //      dot sits on the newest close, which a view following the latest bar
@@ -986,7 +994,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
         vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
-            visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
+            visible_start_ms, candle_duration_ms, plot_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
             theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,

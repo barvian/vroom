@@ -33,6 +33,17 @@ VroomCandle ohlc(int64_t t, double low, double high) {
 
 }  // namespace
 
+TEST_CASE("plot_right gives the gutter back as the y-axis fades out") {
+    Layout l = make_layout();
+    l.y_axis_width_px = 60.f;
+    l.right_padding_px = 10.f;
+    l.y_axis_opacity = 1.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(930.f));
+    l.y_axis_opacity = 0.f;
+    l.y_axis_width_px = 0.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(l.width_px));
+}
+
 TEST_CASE("candle_body_width") {
     Layout l = make_layout();
 

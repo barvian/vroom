@@ -29,6 +29,7 @@ export enum ColorKey {
   AccentBear = 15,
   Line = 16,
   Skeleton = 17,
+  PriceIndicatorBadgeText = 18,
 }
 
 /** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
@@ -52,6 +53,11 @@ export enum FloatKey {
   BadgeFontSize = 16,
   LineTipPulseOpacity = 17,
   LineTipDotRadius = 18,
+  PriceIndicatorDash = 19,
+  PriceIndicatorGap = 20,
+  PriceIndicatorWidth = 21,
+  PriceIndicatorOpacity = 22,
+  PriceIndicatorRoundCap = 23,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -429,6 +435,8 @@ export type PriceLineSpec = {
   quantity: string;
   /** Bitwise-or of the PRICE_LINE_* flags. */
   flags: number;
+  /** Packed 0xAARRGGBB axis-badge and quantity text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** Price status lines + shared style, in the core's numeric encoding. */
@@ -523,6 +531,8 @@ export type CrosshairStyleSpec = {
   dimOpacity: number;
   /** Packed 0xAARRGGBB badge fill. 0 inherits the theme's crosshairTarget. */
   badgeColor: number;
+  /** Packed 0xAARRGGBB badge text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */
@@ -667,34 +677,35 @@ export interface VroomChartHandle {
    * reduced motion: the line draws still and the chart may go idle.
    *
    * Passing `false` abandons any hand-off in flight, which is what a failed or
-   * superseded fetch wants. To hand off to data instead, use the two stages
-   * below.
+   * superseded fetch wants. To hand off to data instead, use the hand-off
+   * calls below.
    */
   setLoading(on: boolean, animate?: boolean): void;
   /**
-   * Hand-off stage one: reshape the loading line into the series. Freezes the
-   * sine where it is and aims each vertex at the vertical centre of the candle
-   * that will occupy its column, so the line resolves into the silhouette of
-   * the data.
+   * Start the hand-off: aim each vertex of the loading line at the close of
+   * the candle that will occupy its column.
    *
-   * Call *after* setCandles — it reads them to know where to aim — then drive
-   * {@link setLoadingMorph} from 0 to 1. The axes and the candles stay
-   * suppressed throughout; stage two brings them in.
+   * Call *after* setCandles — it reads them to know where to aim — then
+   * {@link beginLoadingReveal}. Optionally drive {@link setLoadingMorph} from 0
+   * to 1 in between to reshape the line onto the closes first, under a frozen
+   * sine; the axes and candles stay suppressed while you do.
    */
   beginLoadingMorph(): void;
   /**
-   * Advance stage one. `t` (clamped to 0..1) is the eased progress: 0 renders
-   * the frozen sine, 1 the polyline through the candle centres.
+   * Optional reshape before the reveal. `t` (clamped to 0..1) is the eased
+   * progress: 0 renders the frozen sine, 1 the polyline through the candle
+   * closes.
    */
   setLoadingMorph(t: number): void;
   /**
-   * Hand-off stage two: the candles take over. Captures each one collapsed onto
-   * its own vertical centre at zero alpha and leaves the loading state, so the
-   * bars grow outward from the line and their color fades up as it fades out.
+   * The candles take over. Leaves the loading state and runs the reveal on the
+   * core's own clock (about 0.9s): the line resolves onto the closes, centre
+   * first, while the bars grow out of it and their colour fades up. Over
+   * candles the line gives way to them; in line mode it becomes the series
+   * line.
    *
-   * Call once stage one has reached 1, then drive {@link setIntervalMorph} from
-   * 0 to 1 — the line's fade-out rides that same clock, so the two finish
-   * together.
+   * Keep rendering while {@link isAnimating} is true. Driving
+   * {@link setIntervalMorph} yourself takes the bars off the reveal's clock.
    */
   beginLoadingReveal(): void;
 

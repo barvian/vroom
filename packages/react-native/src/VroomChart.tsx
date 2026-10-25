@@ -8,14 +8,17 @@
 // two Skia copies can't share a picture pointer) so pan/zoom don't serialize
 // the scene — and the system typeface — on every frame.
 //
-// Reanimated 4 + RN-Skia 2 propagate SharedValue changes to <Picture>/<Image>
+// Reanimated 4 + RN-Skia 2/3 propagate SharedValue changes to <Picture>/<Image>
 // without a React re-render, so gesture-driven redraws are cheap.
 //
-// Gestures run on the JS thread for now (`runOnJS(true)`) — installing the
-// JSI bindings on the worklet runtime is a later perf optimization.
+// On iOS every frame is drawn on the UI thread (see uiFrameLoop.ts), so the
+// core's own animations keep their pace while JS is busy; the JS side only
+// changes the core and asks for a frame. Android still draws on JS: its frames
+// are rasterized through RN-Skia's JS API, which the UI runtime doesn't have.
+// Gestures run on the JS thread for now (`runOnJS(true)`).
 
-import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { PixelRatio, View, type LayoutChangeEvent } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { PixelRatio, Platform, View, type LayoutChangeEvent } from 'react-native';
 import {
   AlphaType,
   Canvas,
@@ -23,19 +26,21 @@ import {
   Image,
   Picture,
   Skia,
+  makeRasterImage,
   type SkImage,
   type SkPicture,
-} from '@shopify/react-native-skia';
+} from './skia';
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
+import { runOnJS, runOnUI, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
 import { parseColor } from './theme';
+import { drawUiFrames, LOOP_IDLE, LOOP_STOPPED } from './uiFrameLoop';
 import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
 import type {
   CrosshairButtonConfig,
@@ -116,11 +121,14 @@ function resolveCrosshair(
       dimAhead: cfg.simple?.dimAhead !== false,
       dimOpacity: cfg.simple?.dimOpacity ?? -1,
       badgeColor: (cfg.badgeColor != null ? parseColor(cfg.badgeColor) : null) ?? 0,
+      badgeText: (cfg.badgeTextColor != null ? parseColor(cfg.badgeTextColor) : null) ?? 0,
     },
     offset: cfg.offset ?? legacyOffset ?? 40,
     button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,
   };
 }
+
+const UI_THREAD_FRAMES = Platform.OS === 'ios';
 
 function isSkImage(frame: ChartFrame): frame is SkImage {
   return typeof (frame as SkImage).getImageInfo === 'function';
@@ -193,13 +201,25 @@ export function VroomChart(props: VroomChartProps) {
   const width = widthProp ?? measured.width;
   const height = heightProp ?? measured.height;
 
-  const onLayout = useCallback((e: LayoutChangeEvent) => {
-    const w = Math.round(e.nativeEvent.layout.width);
-    const h = Math.round(e.nativeEvent.layout.height);
+  const applySize = useCallback((layoutWidth: number, layoutHeight: number) => {
+    const w = Math.round(layoutWidth);
+    const h = Math.round(layoutHeight);
     setMeasured((prev) =>
       prev.width === w && prev.height === h ? prev : { width: w, height: h },
     );
   }, []);
+  const onLayout = useCallback(
+    (e: LayoutChangeEvent) => applySize(e.nativeEvent.layout.width, e.nativeEvent.layout.height),
+    [applySize],
+  );
+  // The New Architecture measures synchronously, so the first frame can be
+  // drawn before the first paint. onLayout alone arrives as an event, which a
+  // JS thread busy mounting the rest of a screen can hold back for frames.
+  const viewRef = useRef<View>(null);
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    view?.measureLayout(view, (_x, _y, w, h) => applySize(w, h));
+  }, [applySize]);
 
   // The close button is callback-gated, so whether a handler exists is part of
   // what gets rendered.
@@ -233,7 +253,7 @@ export function VroomChart(props: VroomChartProps) {
   }, []);
   const emptyImage = useMemo(() => {
     const data = Skia.Data.fromBytes(new Uint8Array(4));
-    return Skia.Image.MakeImage(
+    return makeRasterImage(
       {
         width: 1,
         height: 1,
@@ -246,12 +266,17 @@ export function VroomChart(props: VroomChartProps) {
   }, []);
   const pictureSV = useSharedValue<SkPicture>(emptyPicture);
   const imageSV = useSharedValue<SkImage>(emptyImage);
+  const uiLoopState = useSharedValue(LOOP_IDLE);
+  // Set once the chart exists, on iOS (see the header).
+  const requestUiFrames = useRef<(() => void) | null>(null);
 
   // Crosshair plus button. Open = the crosshair is pinned and the host's menu
   // is up. Refs, so applyFrame (which every gesture calls) can read them
   // without re-subscribing. `plusLast` is the geometry last reported, so a
   // frame only fires 'move' on a real change.
   const plusOpen = useRef(false);
+  // Mirrors plusOpen for the UI thread, whose frames re-anchor the menu too.
+  const plusOpenSV = useSharedValue(false);
   const plusLast = useRef<CrosshairButtonHit | null>(null);
   const plusHandle = useRef<ChartHandle | null>(null);
   const onCrosshairButtonRef = useRef(onCrosshairButton);
@@ -274,12 +299,10 @@ export function VroomChart(props: VroomChartProps) {
     [closePlus],
   );
 
-  const applyFrame = useCallback(
-    (frame: ChartFrame) => {
-      if (isSkImage(frame)) imageSV.value = frame;
-      else pictureSV.value = frame;
-      // Re-anchor the host's menu whenever a frame moved the pinned button (a
-      // live tick re-fitting the price axis, a resize); close it if it's gone.
+  // Re-anchors the host's menu whenever a frame moved the pinned button (a
+  // live tick re-fitting the price axis, a resize); closes it if it's gone.
+  const reanchorPlus = useCallback(
+    () => {
       if (!plusOpen.current) return;
       const hit = plusHandle.current?.getCrosshairButton() ?? null;
       if (!hit) {
@@ -300,7 +323,21 @@ export function VroomChart(props: VroomChartProps) {
       plusLast.current = hit;
       onCrosshairButtonRef.current?.(plusEvent('move', hit));
     },
-    [imageSV, pictureSV, plusEvent],
+    [plusEvent],
+  );
+
+  // Every frame goes through here. With UI-thread frames the one rendered on
+  // JS is dropped and the UI thread draws the core as it is now instead, so
+  // the SharedValues only ever have one writer and never step back a frame.
+  const applyFrame = useCallback(
+    (frame: ChartFrame | null) => {
+      if (requestUiFrames.current) requestUiFrames.current();
+      else if (!frame) return;
+      else if (isSkImage(frame)) imageSV.value = frame;
+      else pictureSV.value = frame;
+      reanchorPlus();
+    },
+    [imageSV, pictureSV, reanchorPlus],
   );
 
   // An OS reduced-motion preference snaps every transition, the way
@@ -348,6 +385,29 @@ export function VroomChart(props: VroomChartProps) {
     loading,
   );
 
+  const uiFrames = useMemo(() => {
+    if (!handle || !UI_THREAD_FRAMES) return null;
+    // The worklet captures `handle` by reference: both runtimes reach the same
+    // core, which serializes their calls (see VroomChartHostObject.h).
+    const present = (frame: ChartFrame) => {
+      'worklet';
+      pictureSV.value = frame as SkPicture;
+      if (plusOpenSV.value) runOnJS(reanchorPlus)();
+    };
+    return runOnUI(() => {
+      'worklet';
+      drawUiFrames(handle, uiLoopState, present);
+    });
+  }, [handle, pictureSV, plusOpenSV, uiLoopState, reanchorPlus]);
+  requestUiFrames.current = uiFrames;
+  useEffect(() => handle?.setGestureFrames(!uiFrames), [handle, uiFrames]);
+  useEffect(
+    () => () => {
+      uiLoopState.value = LOOP_STOPPED;
+    },
+    [uiLoopState],
+  );
+
   // Same condition useChartCore draws the line on: a refresh that still has
   // data keeps the chart interactive. Every gesture below is gated on this —
   // there's nothing to pan, zoom or inspect while the line is up, and a
@@ -358,6 +418,7 @@ export function VroomChart(props: VroomChartProps) {
   closePlusRef.current = (redraw = true) => {
     if (!handle || !plusOpen.current) return;
     plusOpen.current = false;
+    plusOpenSV.value = false;
     plusLast.current = null;
     handle.setCrosshairButtonState(false, false);
     if (redraw) {
@@ -371,6 +432,7 @@ export function VroomChart(props: VroomChartProps) {
   const openPlus = () => {
     if (!handle || plusOpen.current) return;
     plusOpen.current = true;
+    plusOpenSV.value = true;
     handle.setCrosshairButtonState(false, true);
     const hit = handle.getCrosshairButton();
     plusLast.current = hit;
@@ -424,7 +486,7 @@ export function VroomChart(props: VroomChartProps) {
     closePlusRef.current(false);
     crosshairActive.current = false;
     const ch = handle.clearCrosshair();
-    if (ch) applyFrame(ch);
+    applyFrame(ch);
     lastCrosshairKey.current = null;
     onCrosshair?.(crosshairEvent(null, 'hide'));
   }, [crosshairMode, handle, applyFrame, onCrosshair]);
@@ -445,7 +507,8 @@ export function VroomChart(props: VroomChartProps) {
   // active, the C++ side starts ramping their opacities. We keep calling
   // render() on every frame until handle.isAnimating() returns false. The
   // loop is started by gesture callbacks (and the momentum tick) after they
-  // update the picture, and self-stops when fades settle.
+  // update the picture, and self-stops when fades settle. Android only: on iOS
+  // the UI thread runs it (uiFrameLoop.ts).
   const animRaf = useRef<number | null>(null);
   const animTick = useCallback(() => {
     animRaf.current = null;
@@ -459,8 +522,9 @@ export function VroomChart(props: VroomChartProps) {
   const maybeStartAnim = useCallback(() => {
     if (animRaf.current != null) return;
     if (!handle?.isAnimating()) return;
-    animRaf.current = requestAnimationFrame(animTick);
-  }, [handle, animTick]);
+    if (uiFrames) uiFrames();
+    else animRaf.current = requestAnimationFrame(animTick);
+  }, [handle, animTick, uiFrames]);
   useEffect(() => {
     return () => {
       if (animRaf.current != null) {
@@ -879,7 +943,7 @@ export function VroomChart(props: VroomChartProps) {
         // dot/horizontal line stay lifted `crosshairOffset` px above the
         // fingertip, and read whichever pane they land in.
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-        if (ch) applyFrame(ch);
+        applyFrame(ch);
         // The line follows the finger every frame (above), but only notify the
         // host when what it reports changes: the slot (which has a timeMs even
         // in the empty space ahead of the last candle), the price, or the
@@ -897,7 +961,7 @@ export function VroomChart(props: VroomChartProps) {
         // (axes follow). Diagonal works naturally.
         next = handle.translate(e.changeX, e.changeY);
       }
-      if (next) applyFrame(next);
+      applyFrame(next);
       maybeStartAnim();
     })
     .onEnd((e) => {
@@ -939,7 +1003,7 @@ export function VroomChart(props: VroomChartProps) {
         velocity *= Math.pow(0.5, dt / HALF_LIFE_S);
         const dx = velocity * dt;
         const next = handle.pan(dx, 0);
-        if (next) applyFrame(next);
+        applyFrame(next);
         maybeStartAnim();
 
         if (Math.abs(velocity) > MIN_STOP) {
@@ -1016,7 +1080,7 @@ export function VroomChart(props: VroomChartProps) {
       if (frameX === 1 && frameY === 1) return;
 
       const next = handle.zoom(frameX, frameY, focalX, focalY);
-      if (next) applyFrame(next);
+      applyFrame(next);
       maybeStartAnim();
     });
 
@@ -1043,7 +1107,7 @@ export function VroomChart(props: VroomChartProps) {
       dismissFootprint(false);
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-      if (ch) applyFrame(ch);
+      applyFrame(ch);
       const ev = crosshairEvent(handle.getCrosshairInfo(), 'show');
       lastCrosshairKey.current = `${ev.timeMs}|${ev.price}|${ev.indicator?.value ?? ''}`;
       onCrosshair?.(ev);
@@ -1113,7 +1177,7 @@ export function VroomChart(props: VroomChartProps) {
       if (tapRegion !== 'chart' && tapRegion !== 'indicator') return;
       crosshairActive.current = false;
       const ch = handle.clearCrosshair();
-      if (ch) applyFrame(ch);
+      applyFrame(ch);
       lastCrosshairKey.current = null;
       onCrosshair?.(crosshairEvent(null, 'hide'));
     });
@@ -1130,7 +1194,7 @@ export function VroomChart(props: VroomChartProps) {
       ]}
     >
       <GestureDetector gesture={gesture}>
-        <View style={{ flex: 1 }}>
+        <View ref={viewRef} style={{ flex: 1 }}>
           <Canvas style={{ flex: 1 }}>
             {width > 0 && height > 0 ? (
               <>

@@ -20,6 +20,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "loading_wave.h"
 #include "price_format.h"
 #include "price_line_layout.h"
 #include "ticks.h"
@@ -118,6 +119,11 @@ void apply_envelope(std::vector<XLabelFade>& fades, float opacity) {
 }  // namespace
 
 IntervalPhase interval_phase(const VroomChart& chart) {
+    // A loading reveal brings the whole axis up together, Liveline's grid ramp,
+    // rather than each label on a clock that a busy host thread can stretch.
+    if (chart.loading_line_revealing) {
+        return {true, false, loading_wave::axis_alpha(chart.loading_reveal)};
+    }
     if (chart.morph_from.empty() || chart.interval_morph_t >= 1.f) return {};
     // A live update keeps the same interval, so its ticks are still the right
     // ones — they stay put and keep their own per-label fades.

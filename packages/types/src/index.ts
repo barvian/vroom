@@ -131,6 +131,10 @@ export type VroomTheme = {
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes
    * generally want a dark value here.
+   *
+   * Each of those badges can override it: `priceIndicatorBadgeText` for the
+   * current-price badge, `crosshair.badgeTextColor` for the crosshair's badges,
+   * and `badgeTextColor` on an individual {@link PriceLine}.
    */
   badgeText?: VroomColor;
   /** Crosshair dashed lines. */
@@ -141,18 +145,18 @@ export type VroomTheme = {
   lineColor?: VroomColor;
   /**
    * The line drawn across the plot while loading (see the `loading` prop).
-   * Defaults to inheriting `grid`: the gridlines are already the chart's tone
-   * for structure rather than data, which is what the line is, so matching
-   * them keeps it from being read as a series.
+   * Defaults to inheriting `axisText`, the tone Liveline draws its loading
+   * line in. The breath keeps it faint, so it still reads as structure
+   * rather than as a series.
    *
-   * The line breathes between roughly 60% and 100% of whatever color it ends
-   * up with — a pulse, not a dimmer, so a recessive color stays legible. Any
-   * alpha given here multiplies into that, so an opaque color is the usual
-   * choice. Pass `lineColor` to make the line read as the chart's own series
-   * warming up instead.
+   * The line breathes between 14% and 30% of whatever color it ends up with,
+   * on a cycle of about 2.4s. Any alpha given here multiplies into that, so
+   * an opaque color is the usual choice. Pass `lineColor` to make the line
+   * read as the chart's own series warming up instead, as Liveline does in
+   * line mode.
    */
   skeleton?: VroomColor;
-  /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
+  /** Line-chart-mode polyline stroke width in px, also the loading line's. Defaults to 1.5. */
   lineWidth?: number;
   /**
    * Opacity of the gradient filled beneath the line-chart polyline, at its
@@ -198,6 +202,38 @@ export type VroomTheme = {
    * ring fades from here to fully transparent as it grows. Defaults to 0.4.
    */
   lineTipPulseOpacity?: number;
+  /**
+   * Dash length in px of the current-price indicator's dashed line. Defaults to 2.
+   *
+   * This is the length you see, caps included: with `priceIndicatorRoundCap`
+   * on, the round ends are taken out of it rather than added to it.
+   */
+  priceIndicatorDashLength?: number;
+  /**
+   * Gap in px between the current-price indicator's dashes. Defaults to 2; 0
+   * draws a solid line.
+   *
+   * Like `priceIndicatorDashLength`, this is the gap you see, caps included.
+   */
+  priceIndicatorDashGap?: number;
+  /** Stroke width in px of the current-price indicator's dashed line. Defaults to 1. */
+  priceIndicatorLineWidth?: number;
+  /**
+   * Opacity of the current-price indicator's dashed line, from 0 to 1. Defaults
+   * to 1.
+   *
+   * Multiplies the alpha of `accentBull` / `accentBear`, so a translucent accent
+   * gets fainter still. The price badge keeps the accent's own alpha.
+   */
+  priceIndicatorLineOpacity?: number;
+  /** Round the ends of the current-price indicator's dashes. Defaults to `false`. */
+  priceIndicatorRoundCap?: boolean;
+  /**
+   * Text on the current-price badge in the y-axis strip. Defaults to
+   * `badgeText`. Useful when `accentBull` / `accentBear` are light enough that
+   * the shared badge text doesn't read against them.
+   */
+  priceIndicatorBadgeText?: VroomColor;
   /**
    * Show the price (y) axis strip down the right edge. Defaults to `true`.
    *
@@ -934,12 +970,21 @@ export type PriceLine = {
   /** Body label — render whatever you like (e.g. `'Limit Buy @ 13.79'`). */
   text?: string;
   /**
-   * Trailing segment, drawn as a solid-filled pill with white text so size reads
-   * at a glance (e.g. `'x 5.206'`). Omit to hide it.
+   * Trailing segment, drawn as a pill filled with `color` so size reads at a
+   * glance (e.g. `'x 5.206'`). Its text is `badgeTextColor`. Omit to hide it.
    */
   quantity?: string;
-  /** Line, border, body text and close-icon color. Defaults to a soft red. */
+  /**
+   * Line, border, body text and close-icon color, and the fill of the
+   * `quantity` pill and the y-axis price badge. Defaults to a soft red.
+   */
   color?: VroomColor;
+  /**
+   * Text on this line's filled pieces: the y-axis price badge and the
+   * `quantity` pill. Defaults to `theme.badgeText`. Set it when `color` is
+   * light enough that the shared badge text doesn't read against it.
+   */
+  badgeTextColor?: VroomColor;
   /** Stroke width in px. Default 1. */
   width?: number;
   /** Line style. Default `'dotted'`, matching the current-price indicator. */
@@ -1118,7 +1163,8 @@ export type FootprintEvent = {
  * turning the whole badge into a button — the order-entry affordance.
  *
  * Opt-in: nothing renders unless `enabled` is true. The badge takes its fill
- * and text color from the theme (`theme.crosshairTarget` / `theme.badgeText`)
+ * and text color from `crosshair.badgeColor` / `crosshair.badgeTextColor`
+ * (defaulting to `theme.crosshairTarget` / `theme.badgeText`)
  * and grows leftward to fit the plus, so the price stays in the y-axis column.
  * Clicking (or tapping) anywhere on it locks the crosshair at that price and
  * fires `onCrosshairButton`, which is where your own UI (e.g. "Buy limit" /
@@ -1215,7 +1261,8 @@ export type CrosshairTimeFormat = 'datetime' | 'time' | 'date';
 /**
  * Crosshair behavior and look. Every field is optional; colors come from the
  * theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
- * fill, `badgeText` for badge text) unless `badgeColor` sets the badge fill.
+ * fill, `badgeText` for badge text) unless `badgeColor` / `badgeTextColor` set
+ * the badge fill / text.
  */
 export type CrosshairConfig = {
   /** Default `'advanced'`. See {@link CrosshairMode}. */
@@ -1231,9 +1278,14 @@ export type CrosshairConfig = {
   /**
    * Fill of the crosshair's time and price badges, the plus button and the
    * simple-mode badge. Defaults to `theme.crosshairTarget`, which also colors
-   * the ring; this leaves the ring alone. Text stays `theme.badgeText`.
+   * the ring; this leaves the ring alone. Text follows `badgeTextColor`.
    */
   badgeColor?: VroomColor;
+  /**
+   * Text on the crosshair's time and price badges, the plus button and the
+   * simple-mode badge. Defaults to `theme.badgeText`.
+   */
+  badgeTextColor?: VroomColor;
   /**
    * Pixels the touch crosshair's dot and horizontal line sit above the finger
    * (advanced mode). Default 40. Replaces `crosshairOffset`.
@@ -1368,10 +1420,10 @@ export type VroomChartCoreProps = {
    * crosshair, the price badge, the axis labels and any indicator panes are all
    * suppressed for the duration.
    *
-   * When the data arrives the line doesn't cut away — it becomes the chart, in
-   * two steps that split `transitionMs`: it reshapes to pass through the
-   * vertical centre of every candle about to be drawn, then fades out while
-   * those candles grow outward from it and their color fades up.
+   * When the data arrives the line doesn't cut away — it becomes the chart,
+   * over about 0.9s: it resolves onto the close of every candle, centre first,
+   * while those candles grow out of it and their color fades up. In line mode
+   * it becomes the series line itself. `transitionMs={0}` snaps it.
    *
    * Passing `candles` alongside `loading` leaves the real chart up, so a
    * background refresh of an already-loaded series won't blank out. Default
@@ -1408,6 +1460,11 @@ export type VroomChartCoreProps = {
    * Price-series render style. `'candles'` (default) draws candlesticks;
    * `'line'` draws a polyline through each candle's close (style it with
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
+   *
+   * On React Native, `priceIndicator*` theme keys that change in the same
+   * render as `chartType` blend across the switch instead of snapping, and so
+   * does the current-price line and badge color `accentBull` / `accentBear`
+   * resolve to.
    */
   chartType?: ChartType;
   /**

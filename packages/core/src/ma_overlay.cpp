@@ -34,8 +34,7 @@ void stroke_path(SkCanvas* canvas,
                  float candle_area_h,
                  uint32_t color,
                  float width,
-                 float opacity,
-                 float clip_left = 0.f) {
+                 float opacity) {
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(static_cast<SkColor>(color));
@@ -47,7 +46,7 @@ void stroke_path(SkCanvas* canvas,
     line.setStrokeWidth(width > 0.f ? width : 1.5f);
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(clip_left, 0.f, candle_right, candle_area_h));
+    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
     canvas->drawPath(path, line);
     canvas->restore();
 }
@@ -335,8 +334,7 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from,
                      std::size_t from_n,
                      float morph_t,
-                     float tension,
-                     float clip_left) {
+                     float tension) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
@@ -347,12 +345,8 @@ void draw_close_line(SkCanvas* canvas,
                                         visible_start_ms, candle_duration_ms,
                                         from, from_n, morph_t, tension);
     if (path.isEmpty()) return;
-    // Nothing reaches the clip. Stops a second pass from adding the stroke's or
-    // the fill's edge pixels just past a vertex that sits inside clip_left.
-    if (clip_left > 0.f && path.getBounds().right() <= clip_left) return;
 
-    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity,
-                clip_left);
+    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity);
 }
 
 void draw_close_gradient(SkCanvas* canvas,
@@ -371,8 +365,7 @@ void draw_close_gradient(SkCanvas* canvas,
                          const CandleSnapshot* from,
                          std::size_t from_n,
                          float morph_t,
-                         float tension,
-                         float clip_left) {
+                         float tension) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     gradient_opacity = std::clamp(gradient_opacity, 0.f, 1.f);
     opacity = std::clamp(opacity, 0.f, 1.f);
@@ -385,14 +378,21 @@ void draw_close_gradient(SkCanvas* canvas,
                                         visible_start_ms, candle_duration_ms,
                                         from, from_n, morph_t, tension);
     if (line.isEmpty()) return;
+    fill_under(canvas, line, candle_right, candle_area_h, color, alpha);
+}
 
+void fill_under(SkCanvas* canvas,
+                const SkPath& line,
+                float candle_right,
+                float candle_area_h,
+                uint32_t color,
+                float alpha) {
     // The polyline runs strictly left to right, so its bounds give the first and
     // last vertex x plus the peak the ramp starts from. A peak above the pane
     // (line zoomed off the top) would stretch the ramp, so anchor at the pane.
     const SkRect b = line.getBounds();
     const float top = std::max(b.top(), 0.f);
     if (top >= candle_area_h) return;
-    if (clip_left > 0.f && b.right() <= clip_left) return;  // see draw_close_line
 
     // Drop from the last vertex to the pane bottom and back along it, turning the
     // polyline into the closed region beneath the line.
@@ -410,7 +410,7 @@ void draw_close_gradient(SkCanvas* canvas,
         vroom::linear_alpha_ramp(pts, static_cast<SkColor>(color), alpha, 0.f));
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(clip_left, 0.f, candle_right, candle_area_h));
+    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
     canvas->drawPath(area.detach(), fill);
     canvas->restore();
 }
@@ -436,9 +436,7 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from,
                     std::size_t from_n,
                     float morph_t) {
-    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
-    opacity = std::clamp(opacity, 0.f, 1.f);
-    if (opacity <= 0.f) return;
+    if (!canvas || opacity <= 0.f) return;
     morph_t = std::clamp(morph_t, 0.f, 1.f);
 
     const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
@@ -448,41 +446,59 @@ void draw_close_tip(SkCanvas* canvas,
     const SkPoint tip =
         close_vertex(lay, bounds, visible, n, window_ms, visible_start_ms,
                      candle_duration_ms, from, from_count, morph_t, 0);
-    const float dot_r = vroom::tip_geometry::of(line_width, dot_radius).dot_r;
-    const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase, pulse_opacity);
-    const bool ring_on = pulse && f.alpha > 0.f;
-    const float extent =
-        ring_on ? dot_r * (f.radius_mul + vroom::tip_pulse::kWidthMul / 2.f)
-                : dot_r;
+    draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
+                    line_color, line_width, dot_radius, opacity, pulse,
+                    pulse_phase, pulse_opacity);
+}
 
-    // The dot is anchored at the newest candle's center, which on a view pinned
-    // to the latest bar is closer to candle_right than the dot's own radius, so
-    // it has to reach into the gutter to draw in full. `clip_right` is the
-    // gutter's far side — the y-axis strip's edge — which the layout keeps wide
-    // enough for the dot (see tip_geometry::gutter_px). The pulse ring is much
-    // wider still and clips there; that is intended.
-    const float right = std::max(candle_right, clip_right);
-    // Panned or scaled off the pane, the marker keeps drawing until none of it
-    // is left inside the clip: the line's end can be past an edge while the dot
-    // or ring around it still shows.
-    if (!vroom::tip_geometry::reaches_clip(tip.fX, tip.fY, extent, right,
-                                           candle_area_h)) {
-        return;
-    }
+void draw_tip_marker(SkCanvas* canvas,
+                     const SkPoint& tip,
+                     float candle_right,
+                     float clip_right,
+                     float candle_area_h,
+                     uint32_t line_color,
+                     float line_width,
+                     float dot_radius,
+                     float opacity,
+                     bool pulse,
+                     float pulse_phase,
+                     float pulse_opacity) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
+    // Panned or scaled out of the pane: the line's end isn't on screen, so
+    // there's nothing to mark. The clip below would hide it anyway, but the ring
+    // is wide enough that a tip just off-pane would still bleed in.
+    if (tip.fY < 0.f || tip.fY > candle_area_h) return;
+    if (tip.fX < 0.f || tip.fX > candle_right) return;
+
+    const float dot_r = vroom::tip_geometry::of(line_width, dot_radius).dot_r;
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, right, candle_area_h));
+    // Wider than the on-pane test above: the dot is anchored at the newest
+    // candle's center, which on a view pinned to the latest bar is closer to
+    // candle_right than the dot's own radius, so it has to reach into the gutter
+    // to draw in full. `clip_right` is the gutter's far side — the y-axis
+    // strip's edge — which the layout keeps wide enough for the dot (see
+    // tip_geometry::gutter_px). The pulse ring is much wider still and clips
+    // there; that is intended.
+    canvas->clipRect(
+        SkRect::MakeLTRB(0.f, 0.f, std::max(candle_right, clip_right),
+                         candle_area_h));
 
     // Ring first: it starts flush with the dot, and the dot paints over the
     // antialiased seam where the two meet.
-    if (ring_on) {
-        SkPaint ring;
-        ring.setAntiAlias(true);
-        ring.setColor(static_cast<SkColor>(line_color));
-        ring.setAlphaf(ring.getAlphaf() * f.alpha * opacity);
-        ring.setStyle(SkPaint::kStroke_Style);
-        ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
-        canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
+    if (pulse) {
+        const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase, pulse_opacity);
+        if (f.alpha > 0.f) {
+            SkPaint ring;
+            ring.setAntiAlias(true);
+            ring.setColor(static_cast<SkColor>(line_color));
+            ring.setAlphaf(ring.getAlphaf() * f.alpha * opacity);
+            ring.setStyle(SkPaint::kStroke_Style);
+            ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
+            canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
+        }
     }
 
     SkPaint dot;

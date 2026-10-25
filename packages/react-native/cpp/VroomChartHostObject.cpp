@@ -52,6 +52,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceScaleMode"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
@@ -70,6 +71,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
   out.push_back(jsi::PropNameID::forAscii(rt, "scalePriceAxis"));
   out.push_back(jsi::PropNameID::forAscii(rt, "scaleTimeAxis"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setGestureFrames"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getAxisMetrics"));
   out.push_back(jsi::PropNameID::forAscii(rt, "isAnimating"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
@@ -234,7 +236,11 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   auto dataFactoryObj = dataFactory.asObject(rt);
   auto imageFactoryObj = imageFactory.asObject(rt);
   auto fromBytes = dataFactoryObj.getPropertyAsFunction(rt, "fromBytes");
-  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, "MakeImage");
+  // RN-Skia 3.x renamed MakeImage to MakeRasterImage.
+  const char* makeImageName = imageFactoryObj.hasProperty(rt, "MakeRasterImage")
+                                  ? "MakeRasterImage"
+                                  : "MakeImage";
+  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, makeImageName);
 
   auto skData =
       fromBytes.callWithThis(rt, dataFactoryObj, bytesLike(rt, std::move(pixels)));
@@ -274,12 +280,49 @@ static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
 }
 #endif
 
+template <typename Fn>
+jsi::Function ChartHostObject::lockedFunction(jsi::Runtime& rt,
+                                              const jsi::PropNameID& name,
+                                              unsigned int paramCount,
+                                              Fn fn) {
+  return jsi::Function::createFromHostFunction(
+      rt, name, paramCount,
+      [this, fn = std::move(fn)](jsi::Runtime& rt2,
+                                 const jsi::Value& thisVal,
+                                 const jsi::Value* args,
+                                 size_t count) -> jsi::Value {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return fn(rt2, thisVal, args, count);
+      });
+}
+
+jsi::Value ChartHostObject::gestureFrame(jsi::Runtime& rt) {
+  if (!gestureFrames_) return jsi::Value::null();
+  return wrapPicture(rt, render_chart_picture(chart_), chart_->px_ratio);
+}
+
 jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                                 const jsi::PropNameID& propName) {
   const std::string name = propName.utf8(rt);
 
+  if (name == "setGestureFrames") {
+    // setGestureFrames(on) — whether the gesture calls render a frame to
+    // return. Off when another runtime draws every frame anyway.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setGestureFrames"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count >= 1) gestureFrames_ = args[0].getBool();
+          return jsi::Value::undefined();
+        });
+  }
+
   if (name == "setCandles") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCandles"),
         1,
@@ -305,7 +348,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setSize") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setSize"),
         3,
@@ -325,7 +368,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setColor") {
     // setColor(keyIndex, argb) — keyIndex is a VroomColorKey; argb is a packed
     // 0xAARRGGBB integer. The core bounds-checks the key and marks dirty.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setColor"),
         2,
@@ -345,7 +388,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setFloat") {
     // setFloat(keyIndex, value) — keyIndex is a VroomFloatKey (e.g. wick width).
     // The core bounds-checks the key and marks dirty.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setFloat"),
         2,
@@ -365,7 +408,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // Pass 0,0 to clear (show all).
     // Timestamps are Number on the JS side — fine for ms-since-epoch since
     // those fit in 53 bits well past year 285,000.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setVisibleRange"),
         2,
@@ -383,7 +426,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setDefaultCandleWidth") {
     // setDefaultCandleWidth(px) — target candle body width for initial framing.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"),
         1,
@@ -400,7 +443,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setChartType") {
     // setChartType(mode) — 0 = candlesticks (default), 1 = line chart.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setChartType"),
         1,
@@ -417,7 +460,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setPriceScaleMode") {
     // setPriceScaleMode(mode) — 0 = linear (default), 1 = logarithmic.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setPriceScaleMode"),
         1,
@@ -434,7 +477,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setMorph") {
     // setMorph(collapse, fade) — candle↔line blend for animated transitions.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setMorph"),
         2,
@@ -450,9 +493,27 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
         });
   }
 
+  if (name == "beginPriceIndicatorMorph") {
+    // beginPriceIndicatorMorph(mode) — blend the price line's style into the
+    // next theme over the candle↔line morph heading to `mode`.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_begin_price_indicator_morph(
+              chart_, static_cast<int32_t>(args[0].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
   if (name == "getVisibleRange") {
     // getVisibleRange() -> { startMs, endMs }. Both 0 while uninitialized.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getVisibleRange"),
         0,
@@ -471,7 +532,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "resetView") {
     // resetView() — reframe the most recent candles and re-enable y auto-fit.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "resetView"),
         0,
@@ -486,7 +547,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "resetPriceScale") {
     // resetPriceScale() — re-enable y auto-fit, leaving the time window alone.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "resetPriceScale"),
         0,
@@ -501,7 +562,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setAutoscaleY") {
     // setAutoscaleY(enabled, animate) — opt-in eased y auto-fit while panning.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setAutoscaleY"),
         2,
@@ -519,7 +580,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "getVisiblePriceEnvelope") {
     // getVisiblePriceEnvelope() -> { low, high } | null. The extent the visible
     // candles occupy, not the (wider) axis range. No rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"),
         0,
@@ -541,7 +602,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "preservePriceEnvelope") {
     // preservePriceEnvelope(prevLow, prevHigh) — scale-lock a manual price
     // range across a timeframe switch. No-op in auto-y mode.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"),
         2,
@@ -560,7 +621,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // beginIntervalMorph(mode?) — capture the visible candle geometry so the
     // next setCandles can animate. Optional string `'fade'` or `'transform'`
     // (default). Call before setCandles.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginIntervalMorph"),
         1,
@@ -585,7 +646,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // can ease a live tick into place. Leaves the axes alone, and continues
     // from the shape on screen when one is still animating. Call before
     // setCandles.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginStreamMorph"),
         0,
@@ -602,7 +663,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // setLoading(on, animate?) — show or hide the loading line. `on` must mean
     // "loading *and* holding no data"; the core takes it at face value.
     // `animate` defaults to true; pass false for reduced motion.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setLoading"),
         2,
@@ -627,7 +688,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // beginLoadingMorph() — hand-off stage one: aim the loading line at the
     // centres of the candles that just landed. Call *after* setCandles, then
     // drive setLoadingMorph from 0 to 1.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginLoadingMorph"),
         0,
@@ -643,7 +704,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setLoadingMorph") {
     // setLoadingMorph(t) — advance stage one. 0 = the frozen sine, 1 = the
     // polyline through the candle centres.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setLoadingMorph"),
         1,
@@ -662,7 +723,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // beginLoadingReveal() — hand-off stage two: collapse every candle onto the
     // line at zero alpha so it grows outward from there. Call once stage one
     // reaches 1, then drive setIntervalMorph from 0 to 1.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginLoadingReveal"),
         0,
@@ -678,7 +739,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setIntervalMorph") {
     // setIntervalMorph(t) — advance the capture toward the new candles. `t` is
     // pre-eased progress: 0 = the captured frame, 1 = settled (capture freed).
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setIntervalMorph"),
         1,
@@ -697,7 +758,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // pan(dx, dy) -> JsiSkPicture
     // Mutates the visible range and renders in one JSI call so gesture
     // handlers don't pay round-trip overhead twice per frame.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "pan"),
         2,
@@ -709,15 +770,14 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_pan(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
   if (name == "translate") {
     // translate(dx, dy) -> JsiSkPicture — shifts time + price bounds
     // without rescaling. Wired to the two-finger pan gesture in JS.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "translate"),
         2,
@@ -729,8 +789,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_translate(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -738,7 +797,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // zoom(scaleX, scaleY, fx, fy) -> JsiSkPicture
     // Per-axis multiplicative factors since the last call (> 1 = zoom in).
     // scaleX scales the time window around fx; scaleY scales price around fy.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "zoom"),
         4,
@@ -752,13 +811,12 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float fx = static_cast<float>(args[2].asNumber());
           const float fy = static_cast<float>(args[3].asNumber());
           vroom_chart_zoom(chart_, sx, sy, fx, fy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
   if (name == "scalePriceAxis") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "scalePriceAxis"),
         1,
@@ -769,13 +827,12 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dy = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_price_axis(chart_, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
   if (name == "scaleTimeAxis") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "scaleTimeAxis"),
         1,
@@ -786,13 +843,12 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dx = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_time_axis(chart_, dx);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
   if (name == "getAxisMetrics") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getAxisMetrics"),
         0,
@@ -811,7 +867,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "isAnimating") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "isAnimating"),
         0,
@@ -826,7 +882,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setCrosshair") {
     // setCrosshair(x, y) -> JsiSkPicture. Activates the crosshair at (x, y) in
     // pixels (y already lifted above the touch on the JS side) and renders.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshair"),
         2,
@@ -838,14 +894,13 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float x = static_cast<float>(args[0].asNumber());
           const float y = static_cast<float>(args[1].asNumber());
           vroom_chart_set_crosshair(chart_, x, y);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
   if (name == "clearCrosshair") {
     // clearCrosshair() -> JsiSkPicture. Hides the crosshair and renders.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "clearCrosshair"),
         0,
@@ -854,8 +909,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_clear_crosshair(chart_);
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return gestureFrame(rt2);
         });
   }
 
@@ -863,7 +917,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // getCrosshairCandle() -> { timeMs, open, high, low, close, volume } | null.
     // The OHLCV of the candle the crosshair currently snaps to; null when the
     // crosshair is inactive. Cheap to call at gesture rate — no rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getCrosshairCandle"),
         0,
@@ -893,7 +947,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // the crosshair snaps to (real candle or a future candle-aligned slot past
     // the last bar); null when the crosshair is inactive. `candle` is null in
     // the empty space ahead of the most recent candle. No rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getCrosshairInfo"),
         0,
@@ -939,7 +993,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // bandColor, bandsVisible, extremeFill}) — configures the RSI pane. No
     // render; the next
     // render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setRSI"),
         1,
@@ -986,7 +1040,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // signalVisible, histVisible, histUpColor, histUpFadingColor,
     // histDownColor, histDownFadingColor, zeroColor, zeroVisible}) — configures
     // the MACD pane. No render; the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setMACD"),
         1,
@@ -1044,7 +1098,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setATR") {
     // setATR({enabled, period, smoothing, lineColor, lineWidth}) — configures
     // the ATR pane. No render; the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setATR"),
         1,
@@ -1072,7 +1126,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setOverlays") {
     // setOverlays([{ kind, period, source, color, width }, ...]) — replaces the
     // full set of MA/EMA overlay lines. No render; the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setOverlays"),
         1,
@@ -1109,7 +1163,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setVWAP") {
     // setVWAP({enabled, resetOffsetMin, color, width}) — session VWAP overlay.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setVWAP"),
         1,
@@ -1137,7 +1191,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // upperWidth, middleColor, middleWidth, lowerColor, lowerWidth,
     // fillEnabled, fillOpacity}) — Bollinger Bands overlay. No render; the
     // next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setBollinger"),
         1,
@@ -1184,7 +1238,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // senkouA, senkouB and chikou, cloudEnabled, bullishCloudColor,
     // bearishCloudColor, cloudOpacity}) — the Ichimoku overlay. No render; the
     // next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setIchimoku"),
         1,
@@ -1240,7 +1294,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // labelFontSize, showInverse, inverseBullishColor, inverseBearishColor,
     // inverseLabel}) — the Fair Value Gap overlay. No render; the next
     // render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setFairValueGaps"),
         1,
@@ -1299,7 +1353,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // setVolume({enabled, heightFrac, opacity, radiusPx, upColor, downColor})
     // — the volume bars. Negative floats / zero colors inherit the theme. No
     // render; the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setVolume"),
         1,
@@ -1329,7 +1383,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setVolumeCollapse") {
     // setVolumeCollapse(t, easing) — staggered collapse of the volume bars. `t`
     // is LINEAR progress; the core eases each bar over its own window.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setVolumeCollapse"),
         2,
@@ -1350,7 +1404,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // setAxisCollapse(yT, xT) — hides the price / time axis strips. Both take
     // EASED progress (0 shown, 1 hidden); there is no per-element stagger for
     // the core to distribute, so the host owns the curve.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setAxisCollapse"),
         2,
@@ -1371,7 +1425,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // coordAt(x, y) -> { timeMs, price } | null. The continuous data coordinate
     // at a pixel — not snapped to a candle slot. Null when there are no candles
     // or the viewport is degenerate. No rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "coordAt"),
         2,
@@ -1395,11 +1449,11 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setPriceLines") {
     // setPriceLines({ lines: [{ price, color, width, lineStyle, text, quantity,
-    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
+    // flags, badgeText }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
     // cornerRadiusPx }) —
     // replaces the full set of price status lines. No render; the next render()
     // picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setPriceLines"),
         1,
@@ -1435,6 +1489,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
             lines[i].quantity = quantities[i].c_str();
             lines[i].flags = static_cast<int32_t>(
                 l.getProperty(rt2, "flags").asNumber());
+            lines[i].badge_text = static_cast<uint32_t>(
+                l.getProperty(rt2, "badgeText").asNumber());
           }
           VroomPriceLineStyle style{};
           style.body_bg = static_cast<uint32_t>(
@@ -1458,7 +1514,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // hitTestPriceLine(x, y) -> { index, part } | null. `part` is 0 for the line
     // or its label body (the drag target) and 1 for the close button. Cheap
     // enough to call at gesture rate — no rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "hitTestPriceLine"),
         2,
@@ -1483,7 +1539,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setPriceLineHover") {
     // setPriceLineHover(index, part) — highlight a price line's segment; -1
     // clears. No hover on touch, so this exists for parity/pointer devices.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setPriceLineHover"),
         2,
@@ -1502,7 +1558,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setPriceLineDrag") {
     // setPriceLineDrag(index, price) — live drag preview; index -1 ends it. The
     // committed price is untouched: restate setPriceLines to apply a move.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setPriceLineDrag"),
         2,
@@ -1523,7 +1579,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // hoverBoost }) — replaces the full set of executed-trade badges. The core
     // buckets them onto candles itself, so raw fill times are what to pass. No
     // render; the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setFootprints"),
         1,
@@ -1567,7 +1623,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // setFootprints and covers *both* sides of that candle, so one call fills a
     // tooltip; `pane` is the plot rect, for deciding which side of the badge that
     // tooltip fits on. No rendering.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "hitTestFootprint"),
         2,
@@ -1616,7 +1672,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setFootprintHover") {
     // setFootprintHover(candleTimeMs, side) — highlight one badge; side -1
     // clears. Touch has no hover, so on RN this tracks the tapped badge.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setFootprintHover"),
         2,
@@ -1635,7 +1691,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setCrosshairButton") {
     // setCrosshairButton({ enabled, cornerRadiusPx, hoverBoost }). No render;
     // the next render() picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshairButton"),
         1,
@@ -1659,9 +1715,9 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setCrosshairStyle") {
     // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
-    // simpleHeight, dimAhead, dimOpacity, badgeColor }). No render; the next render()
+    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText }). No render; the next render()
     // picks it up.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshairStyle"),
         1,
@@ -1684,6 +1740,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.dim_ahead = cfg.getProperty(rt2, "dimAhead").getBool() ? 1 : 0;
           s.dim_opacity = static_cast<float>(num("dimOpacity"));
           s.badge_color = static_cast<uint32_t>(num("badgeColor"));
+          s.badge_text = static_cast<uint32_t>(num("badgeText"));
           vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });
@@ -1692,7 +1749,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setCrosshairButtonState") {
     // setCrosshairButtonState(hovered, pinned). Pinning locks the crosshair to
     // the price under it. No render.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshairButtonState"),
         2,
@@ -1710,7 +1767,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "getCrosshairButton") {
     // getCrosshairButton() -> { left, top, right, bottom, price, timeMs, pane }
     // | null.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "getCrosshairButton"),
         0,
@@ -1729,7 +1786,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "hitTestCrosshairButton") {
     // hitTestCrosshairButton(x, y) -> same shape as getCrosshairButton, or null
     // on a miss.
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "hitTestCrosshairButton"),
         2,
@@ -1749,7 +1806,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "render") {
-    return jsi::Function::createFromHostFunction(
+    return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "render"),
         0,

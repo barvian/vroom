@@ -17,9 +17,6 @@ namespace vroom::crosshair_style {
 
 inline constexpr float kDefaultSimpleHeight = 1.f;
 inline constexpr float kDefaultDimOpacity = 0.35f;
-inline constexpr float kBadgePadX = 8.f;
-inline constexpr float kBadgePadY = 4.f;
-inline constexpr float kBadgeRadius = 6.f;
 
 // The style with every sentinel replaced by its mode's default.
 inline VroomCrosshairStyle resolve(const VroomCrosshairStyle& in) {
@@ -39,9 +36,6 @@ inline VroomCrosshairStyle resolve(const VroomCrosshairStyle& in) {
                                             : std::min(s.simple_height, 1.f);
     s.dim_opacity = s.dim_opacity < 0.f ? kDefaultDimOpacity
                                         : std::min(s.dim_opacity, 1.f);
-    if (s.simple_pad_x_px < 0.f) s.simple_pad_x_px = kBadgePadX;
-    if (s.simple_pad_y_px < 0.f) s.simple_pad_y_px = kBadgePadY;
-    if (s.simple_radius_px < 0.f) s.simple_radius_px = kBadgeRadius;
     return s;
 }
 

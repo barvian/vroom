@@ -533,15 +533,6 @@ export type CrosshairStyleSpec = {
   badgeColor: number;
   /** Packed 0xAARRGGBB badge text. 0 inherits the theme's badgeText. */
   badgeText: number;
-  /** Simple mode: badge text px; <= 0 = the theme's badgeFontSize. */
-  simpleFontPx: number;
-  /** Simple mode: badge text box height px; <= 0 = the glyphs' own. */
-  simpleLineHeightPx: number;
-  /** Simple mode: badge padding px; < 0 = 8 left/right, 4 above/below. */
-  simplePadXPx: number;
-  simplePadYPx: number;
-  /** Simple mode: badge corner radius px, capped at half its height; < 0 = 6. */
-  simpleRadiusPx: number;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */

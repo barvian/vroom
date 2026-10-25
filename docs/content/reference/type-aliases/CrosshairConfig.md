@@ -11,11 +11,6 @@ type CrosshairConfig = {
   mode?: CrosshairMode;
   offset?: number;
   simple?: {
-    badgeFontSize?: number;
-    badgeLineHeight?: number;
-    badgePaddingX?: number;
-    badgePaddingY?: number;
-    badgeRadius?: number;
     dimAhead?: boolean;
     dimOpacity?: number;
     height?: number;
@@ -137,11 +132,6 @@ Pixels the touch crosshair's dot and horizontal line sit above the finger
 
 ```ts
 optional simple?: {
-  badgeFontSize?: number;
-  badgeLineHeight?: number;
-  badgePaddingX?: number;
-  badgePaddingY?: number;
-  badgeRadius?: number;
   dimAhead?: boolean;
   dimOpacity?: number;
   height?: number;
@@ -151,48 +141,6 @@ optional simple?: {
 Source: [types/src/index.ts:1297](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1297)
 
 Simple-mode options.
-
-#### badgeFontSize?
-
-```ts
-optional badgeFontSize?: number;
-```
-
-Badge text size in px. Defaults to `theme.badgeFontSize`.
-
-#### badgeLineHeight?
-
-```ts
-optional badgeLineHeight?: number;
-```
-
-Height of the badge's text box in px, centered on the text; the padding
-goes around it. Defaults to the text's own height.
-
-#### badgePaddingX?
-
-```ts
-optional badgePaddingX?: number;
-```
-
-Badge padding left and right of the text, in px. Default 8.
-
-#### badgePaddingY?
-
-```ts
-optional badgePaddingY?: number;
-```
-
-Badge padding above and below the text box, in px. Default 4.
-
-#### badgeRadius?
-
-```ts
-optional badgeRadius?: number;
-```
-
-Badge corner radius in px. Default 6. Capped at half the badge's height,
-so `Infinity` draws a capsule.
 
 #### dimAhead?
 

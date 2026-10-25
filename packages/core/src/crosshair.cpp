@@ -30,26 +30,20 @@ namespace vroom::crosshair {
 
 namespace {
 constexpr float kRingRadius = 3.5f;  // hollow dot at the intersection
-constexpr float kPadV = crosshair_style::kBadgePadY;     // badge padding above/below the text
-constexpr float kPadH = crosshair_style::kBadgePadX;     // badge padding left/right of the text
-constexpr float kCorner = crosshair_style::kBadgeRadius;  // rounded-badge corner radius
+constexpr float kPadV = 4.f;     // badge padding above/below the text
+constexpr float kPadH = 8.f;     // badge padding left/right of the text
+constexpr float kCorner = 6.f;   // rounded-badge corner radius
 static_assert(kPadH == vroom::labels::kAxisBadgePadH,
               "the stroke ends on the pad this badge actually draws");
-
-struct BadgeShape {
-    float pad_x = kPadH;
-    float pad_y = kPadV;
-    float radius = kCorner;  // capped at half the badge's height
-    float line_h = 0.f;      // text box height; <= 0 uses the glyphs' own
-};
-
-float badge_height(const BadgeShape& shape, const SkRect& glyphs) {
-    return (shape.line_h > 0.f ? shape.line_h : glyphs.height()) + 2.f * shape.pad_y;
-}
+// The simple crosshair's time badge: a capsule around 15px text on a 20px line.
+constexpr float kSimpleFontPx = 15.f;
+constexpr float kSimpleLineH = 20.f;
+constexpr float kSimplePadH = 10.f;
 
 // Draws a filled rounded-rect badge with `text` centered on (`cx`, `cy`).
 // Matches the current-price indicator's geometry (glyph-bounds centering so the
-// digits sit on the center regardless of the font's cap-height metric).
+// digits sit on the center regardless of the font's cap-height metric). A
+// `box_h` of 0 fits the box to the glyphs.
 void draw_badge(SkCanvas* canvas,
                 const SkFont& font,
                 const char* text,
@@ -58,16 +52,17 @@ void draw_badge(SkCanvas* canvas,
                 SkColor fill,
                 SkColor text_color,
                 float opacity,
-                const BadgeShape& shape = {}) {
+                float pad_h = kPadH,
+                float box_h = 0.f,
+                float radius = kCorner) {
     if (opacity <= 0.f) return;
     const size_t len = std::strlen(text);
     SkRect tb;
     const float text_w = font.measureText(text, len, SkTextEncoding::kUTF8, &tb);
-    const float box_w = text_w + 2.f * shape.pad_x;
-    const float box_h = badge_height(shape, tb);
+    const float box_w = text_w + 2.f * pad_h;
+    if (box_h <= 0.f) box_h = tb.height() + 2.f * kPadV;
     const SkRect rect = SkRect::MakeXYWH(cx - box_w * 0.5f, cy - box_h * 0.5f,
                                          box_w, box_h);
-    const float radius = std::min(shape.radius, box_h * 0.5f);
 
     SkPaint box;
     box.setAntiAlias(true);
@@ -291,16 +286,12 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
 
     SkFont font;
     const bool tf = axis_font(chart, &font);
-    if (tf && style.simple_font_px > 0.f) font.setSize(style.simple_font_px);
-    const BadgeShape shape{style.simple_pad_x_px, style.simple_pad_y_px,
-                           style.simple_radius_px, style.simple_line_height_px};
     char buf[32] = {};
     float badge_h = 0.f;
     if (tf) {
+        font.setSize(kSimpleFontPx);
         format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
-        SkRect tb;
-        font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8, &tb);
-        badge_h = badge_height(shape, tb);
+        badge_h = kSimpleLineH + 2.f * kPadV;
     }
     const auto g = vroom::crosshair_style::simple_geometry(
         lay.height_px, vline_bottom, badge_h, style.simple_height);
@@ -312,11 +303,12 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     if (!tf) return;
 
     const float text_w = font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
-    const float half_w = (text_w + 2.f * shape.pad_x) * 0.5f;
+    const float half_w = (text_w + 2.f * kSimplePadH) * 0.5f;
     const float badge_cx =
         std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
     draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
-               badge_fill(chart), badge_text(chart), 1.f, shape);
+               badge_fill(chart), badge_text(chart), 1.f, kSimplePadH, badge_h,
+               badge_h * 0.5f);
 }
 }  // namespace
 

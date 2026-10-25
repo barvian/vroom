@@ -770,14 +770,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const std::size_t morph_n_draw = reshape ? morph_n : 0;
     const float morph_t = reshape ? interval_morph_t : 1.f;
 
-    // The close line and its tip marker, resolved by whichever branch below
-    // draws the price series and painted together at step 6.5. The tip is the
-    // only plot layer that has to outlive the axis backgrounds, and the line
-    // shares its layer so the dot doesn't show the line's end through it.
-    float line_alpha = 0.f;
-    std::size_t line_n = 0;
-    const vroom::CandleSnapshot* line_from = nullptr;
-    std::size_t line_from_n = 0;
+    // Line-mode tip marker, resolved by whichever branch below draws the price
+    // series and painted at step 6.5. It is the only plot layer that has to
+    // outlive the axis backgrounds, so it can't be drawn in place like the rest.
+    float tip_opacity = 0.f;
     std::size_t tip_slots = 0;
     const vroom::CandleSnapshot* tip_from = nullptr;
     std::size_t tip_from_n = 0;
@@ -823,10 +819,17 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                      morph_n, 0.f);
             }
             if (fade > 0.f) {
-                line_alpha = fade * layer;
-                line_from = tip_from = morph_from.data();
-                line_from_n = tip_from_n = morph_n;
+                vroom::ma_overlay::draw_close_line(
+                    canvas, lay, bounds, visible, 0, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
+                    morph_from.data(), morph_n, 0.f,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                tip_opacity = fade * layer;
                 tip_slots = 0;
+                tip_from = morph_from.data();
+                tip_from_n = morph_n;
                 tip_morph_t = 0.f;
             }
 
@@ -915,6 +918,16 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                      candle_duration_ms, collapse, 1.f - fade,
                                      morph_src, morph_n_draw, morph_t);
             }
+            if (fade > 0.f) {
+                vroom::ma_overlay::draw_close_line(
+                    canvas, lay, bounds, visible, n, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * series_line,
+                    morph_src, morph_n_draw, morph_t,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+            }
+
             // 5.5 - 5.67. Moving averages, VWAP, Bollinger and Ichimoku lines.
             draw_overlay_lines(canvas, lay, bounds, visible, n, range.start,
                                window_ms, candle_right, candle_area_h, reshape,
@@ -924,16 +937,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
                                   candle_area_h);
 
-            // 5.8. The close line and its tip marker. The saveLayer this branch
-            //      may be wrapped in doesn't reach step 6.5, so fold its alpha in.
+            // 5.8. Line-mode tip marker. The saveLayer this branch may be
+            //      wrapped in doesn't reach step 6.5, so fold its alpha in.
             if (fade > 0.f) {
                 const auto anchor = vroom::tip_anchor::at(
                     range.start, range.end, candles.size(), reshape);
-                line_alpha =
+                tip_opacity =
                     fade * series_line * (wrap ? axis_phase.opacity : 1.f);
-                line_n = n;
-                line_from = morph_src;
-                line_from_n = morph_n_draw;
                 tip_slots = anchor.slot_count;
                 tip_from = anchor.use_morph ? morph_src : nullptr;
                 tip_from_n = anchor.use_morph ? morph_n_draw : 0;
@@ -967,38 +977,23 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
         axis_bg);
 
-    // 6.5. The close line and its tip marker, resolved at 5.8. After the masks
-    //      because the dot sits on the newest close, which a view following the
-    //      latest bar parks within a few pixels of candle_right — closer than
-    //      the dot's own radius — so it paints into the gutter the layout
-    //      widened for it. The clip still stops at the y-axis strip, so nothing
-    //      here can reach the price labels; the pulse ring simply ends there.
-    //      Both draw opaque into one layer that takes the line's alpha.
-    if (line_alpha > 0.f) {
-        const SkColor color = theme.colors[VROOM_COLOR_LINE];
-        const float alpha = line_alpha * SkColorGetA(color) / 255.f;
-        const SkRect bleed = SkRect::MakeLTRB(
-            0.f, 0.f, std::max(candle_right, tip_clip_right), candle_area_h);
-        if (alpha < 1.f) canvas->saveLayerAlphaf(&bleed, alpha);
-        vroom::ma_overlay::draw_close_line(
-            canvas, lay, bounds, visible, line_n, window_ms, visible_start_ms,
-            candle_duration_ms, candle_right, candle_area_h,
-            SkColorSetA(color, 255), theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            1.f, line_from, line_from_n, tip_morph_t,
-            theme.floats[VROOM_FLOAT_LINE_TENSION]);
-        if (theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
-            vroom::ma_overlay::draw_close_tip(
-                canvas, lay, bounds, visible, tip_slots, window_ms,
-                visible_start_ms, candle_duration_ms, candle_right,
-                tip_clip_right, candle_area_h, SkColorSetA(color, 255),
-                theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-                theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], 1.f,
-                theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
-                tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
-                theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
-                tip_from_n, tip_morph_t);
-        }
-        if (alpha < 1.f) canvas->restore();
+    // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
+    //      dot sits on the newest close, which a view following the latest bar
+    //      parks within a few pixels of candle_right — closer than the dot's own
+    //      radius — so it paints into the gutter the layout widened for it. The
+    //      clip still stops at the y-axis strip, so nothing here can reach the
+    //      price labels; the pulse ring simply ends there.
+    if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+        vroom::ma_overlay::draw_close_tip(
+            canvas, lay, bounds, visible, tip_slots, window_ms,
+            visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
+            candle_area_h, theme.colors[VROOM_COLOR_LINE],
+            theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
+            theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,
+            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+            tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
+            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
+            tip_from_n, tip_morph_t);
     }
 
     // 6.6. Loading line, stage 3. After the masks because, in line mode, it

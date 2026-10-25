@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdocumentation"
@@ -983,8 +984,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      radius — so it paints into the gutter the layout widened for it. The
     //      clip still stops at the y-axis strip, so nothing here can reach the
     //      price labels; the pulse ring simply ends there.
+    float tip_left = std::numeric_limits<float>::infinity();
     if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
-        vroom::ma_overlay::draw_close_tip(
+        tip_left = vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
@@ -1039,7 +1041,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         }
         price_indicator_accent = vroom::price_indicator::draw(
             canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
-            morph_t);
+            morph_t, tip_left);
         if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();
 

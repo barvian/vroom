@@ -42,7 +42,8 @@ uint32_t draw(SkCanvas* canvas,
               float candle_right,
               float candle_area_h,
               const vroom::CandleSnapshot* morph_from,
-              float morph_t) {
+              float morph_t,
+              float tip_left) {
     if (!canvas || chart.candles.empty())
         return chart.theme.colors[VROOM_COLOR_ACCENT_BULL];
 
@@ -94,9 +95,11 @@ uint32_t draw(SkCanvas* canvas,
     }
 
     // Meet the badge when it will draw. Otherwise stop at the plot edge.
-    const float line_right = join_badge
-        ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
-        : candle_right;
+    const float line_right = std::min(
+        join_badge ? vroom::labels::axis_badge_left(lay.width_px,
+                                                    lay.y_axis_width_px, text_w)
+                   : candle_right,
+        tip_left);
     const auto style = vroom::price_indicator_style::current(
         chart.price_indicator_morph, chart.theme, chart.morph_fade);
     const auto iv = vroom::price_indicator_dash::intervals(

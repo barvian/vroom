@@ -141,7 +141,9 @@ void draw_close_gradient(SkCanvas* canvas,
 // when the newest candle is at the right edge, so it paints into the gutter the
 // layout reserves for it. Callers must therefore draw the tip *after* the axis
 // backgrounds, which mask that gutter.
-void draw_close_tip(SkCanvas* canvas,
+//
+// Returns the dot's left edge, or infinity when no marker drew.
+float draw_close_tip(SkCanvas* canvas,
                     const Layout& lay,
                     const PriceBounds& bounds,
                     const ::VroomCandle* visible,
@@ -166,7 +168,7 @@ void draw_close_tip(SkCanvas* canvas,
 // draw_close_tip's marker at an already-resolved `tip`, for a line whose end
 // isn't a candle's close (the loading reveal's). Same on-pane test, clip and
 // paint, so the two are indistinguishable where they meet.
-void draw_tip_marker(SkCanvas* canvas,
+float draw_tip_marker(SkCanvas* canvas,
                      const SkPoint& tip,
                      float candle_right,
                      float clip_right,

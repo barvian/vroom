@@ -384,7 +384,7 @@ typedef struct VroomCrosshairStyle {
     int32_t time_format;    // VroomCrosshairTimeFormat; < 0 => time in simple, datetime otherwise
     int32_t hour12;         // 1 = 11:30 AM
     float   simple_height;  // simple: badge top as a fraction of chart height (1 = top); < 0 => 1
-    int32_t dim_ahead;      // simple: dim right of the line, out to the y-axis strip
+    int32_t dim_ahead;      // simple: dim the plot right of the line
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
     uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
     uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT

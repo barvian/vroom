@@ -1484,13 +1484,12 @@ export type VroomChartCoreProps = {
    * animating each refit quickly so the scale glides rather than jumps. The
    * highest high and lowest low in view always stay inside the plot.
    *
-   * While it's in charge, a one-finger (or mouse) drag pans time only — its
-   * vertical component is ignored, so a slightly diagonal swipe doesn't take the
-   * scale over. Zooming or scaling either axis (a pinch, a wheel/trackpad zoom,
-   * or a drag on the price or time axis) hands control to the user: the price
-   * axis freezes where it is and stays manual for this series. A new series — a
-   * `seriesKey` change or a switch to a different asset — turns it back on; an
-   * interval switch on the same series does not.
+   * Nothing turns it off while it's set. A one-finger (or mouse) drag pans time
+   * only — its vertical component is ignored, so a slightly diagonal swipe
+   * doesn't take the scale over. A pinch or wheel/trackpad zoom scales time
+   * only, whichever direction it runs. A drag on the price axis never rescales
+   * price (on React Native it pans like the plot), and a drag on the time axis
+   * rescales time without touching price.
    *
    * Default false, which keeps the instant auto-fit that lasts until the first
    * vertical drag. Snaps instead of animating when the OS requests reduced

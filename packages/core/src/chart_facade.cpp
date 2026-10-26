@@ -191,11 +191,11 @@ void ensure_manual_price_bounds(VroomChart* chart) {
     vroom::labels::recompute_axis_width(*chart);
 }
 
-// The user zoomed or scaled an axis, which ends autoscale for this series. When
-// it was in charge, y freezes where it stands; otherwise y is left to whatever
-// mode it was already in (an x zoom never takes plain auto mode manual).
+// The user zoomed or scaled an axis. autoscaleY never hands y over: while it's
+// on, no gesture touches the price range (see zoom and scale_price_axis), so
+// there is nothing to freeze and nothing to record.
 void mark_user_adjusted(VroomChart* chart) {
-    if (chart->autoscale_y_engaged()) ensure_manual_price_bounds(chart);
+    if (chart->autoscale_y) return;
     chart->axes_user_adjusted = true;
 }
 
@@ -678,7 +678,7 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
     //
     // Skipped while autoscale owns the y-range: a finger never drags perfectly
     // level, and taking the scale manual on that jitter would end autoscale on
-    // nearly every pan. A pinch or axis drag is how the user takes y over.
+    // nearly every pan.
     if (dy_px != 0.f && !chart->candles.empty() &&
         !chart->autoscale_y_engaged()) {
         ensure_manual_price_bounds(chart);
@@ -703,7 +703,8 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
 }
 
 extern "C" void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
-    if (!chart || dy_px == 0.f) return;
+    // autoscaleY owns the price range.
+    if (!chart || dy_px == 0.f || chart->autoscale_y) return;
     mark_user_adjusted(chart);
     ensure_manual_price_bounds(chart);
 
@@ -889,17 +890,17 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
     bool price_changed = false;
     bool window_changed = false;
 
-    // Ahead of either axis moving: an x zoom changes which candles are in view,
-    // and the frozen y-range has to be the one on screen before it did.
+    // autoscaleY owns the price range, so a zoom only ever scales time.
     const bool zooms_x = scale_x > 0.f && scale_x != 1.f;
-    const bool zooms_y = scale_y > 0.f && scale_y != 1.f;
+    const bool zooms_y =
+        !chart->autoscale_y && scale_y > 0.f && scale_y != 1.f;
     if ((zooms_x || zooms_y) && !chart->candles.empty()) {
         mark_user_adjusted(chart);
     }
 
     // --- Y (price) zoom around fy ------------------------------------------
     // scale_y > 1 (vertical pinch out) narrows the price range → taller candles.
-    if (scale_y > 0.f && scale_y != 1.f && !chart->candles.empty()) {
+    if (zooms_y && !chart->candles.empty()) {
         ensure_manual_price_bounds(chart);
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         if (candle_area_h > 0.f &&

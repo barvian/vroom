@@ -216,6 +216,7 @@ void draw_y_labels(SkCanvas* canvas,
     SkPaint text_paint;
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
+    const float text_alpha = text_paint.getAlphaf();
 
     // Horizontal center of the y-axis container ([width - y_axis_width, width]).
     // Labels (and the price box) center on this so their text shares a column.
@@ -238,7 +239,7 @@ void draw_y_labels(SkCanvas* canvas,
         if (baseline_y - cap_h < 0.f) continue;
         if (baseline_y > candle_area_h) continue;
 
-        text_paint.setAlphaf(f.opacity * lay.y_axis_opacity);
+        text_paint.setAlphaf(text_alpha * f.opacity * lay.y_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
 }
@@ -382,6 +383,7 @@ void draw_x_labels(SkCanvas* canvas,
     SkPaint text_paint;
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
+    const float text_alpha = text_paint.getAlphaf();
 
     // A label fading out keeps sliding with the pan, so it can poke past the
     // plot edge before it is gone; the clip keeps it out of the y-axis column.
@@ -404,7 +406,7 @@ void draw_x_labels(SkCanvas* canvas,
             buf, len, SkTextEncoding::kUTF8);
         const float text_x = x_center - text_w * 0.5f;
 
-        text_paint.setAlphaf(f.label_opacity * lay.x_axis_opacity);
+        text_paint.setAlphaf(text_alpha * f.label_opacity * lay.x_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
     canvas->restore();

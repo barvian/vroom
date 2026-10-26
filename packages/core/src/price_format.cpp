@@ -62,7 +62,7 @@ int significant_decimals(double reference) {
 
 PriceFormat price_format_for(double reference, double fixed_decimals) {
     const CompactScale compact = compact_scale_for(reference);
-    if (fixed_decimals >= 0.0 && std::isfinite(fixed_decimals)) {
+    if (fixed_decimals >= 0.0) {
         const int decimals = static_cast<int>(std::min(
             std::round(fixed_decimals), static_cast<double>(kPriceMaxDecimals)));
         return PriceFormat{decimals, true, compact, true};

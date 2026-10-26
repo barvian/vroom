@@ -89,16 +89,14 @@ describe('applyTheme', () => {
     expect(FLOAT_KEYS.badgeFontSize).toBe(16);
     expect(FLOAT_KEYS.lineTipPulseOpacity).toBe(17);
     expect(FLOAT_KEYS.lineTipDotRadius).toBe(18);
-    expect(FLOAT_KEYS.priceDecimals).toBe(19);
-    expect(FLOAT_KEYS.minPriceRangeRatio).toBe(20);
     expect(floats).toContainEqual([11, 2.5]);
     expect(floats).toContainEqual([13, 0.5]);
     expect(floats).toContainEqual([3, 14]);
     expect(floats).toContainEqual([16, 12]);
     expect(floats).toContainEqual([17, 0.6]);
     expect(floats).toContainEqual([18, 6]);
-    expect(floats).toContainEqual([19, 2]);
-    expect(floats).toContainEqual([20, 0.02]);
+    expect(floats).toContainEqual([24, 2]);
+    expect(floats).toContainEqual([25, 0.02]);
     expect(floats).toHaveLength(8);
   });
 

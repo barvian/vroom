@@ -1001,7 +1001,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 6.6. Loading line, stage 3. After the masks because, in line mode, it
     //      carries the tip marker 6.5 would draw.
     if (loading_line_revealing) {
-        vroom::loading_line::draw_reveal(canvas, *this, lay, tip_clip_right);
+        tip_left = vroom::loading_line::draw_reveal(canvas, *this, lay,
+                                                    tip_clip_right);
     }
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)

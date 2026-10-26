@@ -8,6 +8,7 @@
 #include "include/core/SkPath.h"
 #include "include/core/SkPathBuilder.h"
 #include "include/core/SkPoint.h"
+#include "include/core/SkRRect.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkShader.h"
 #pragma clang diagnostic pop
@@ -334,7 +335,8 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from,
                      std::size_t from_n,
                      float morph_t,
-                     float tension) {
+                     float tension,
+                     float tip_hole_r) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
@@ -346,7 +348,19 @@ void draw_close_line(SkCanvas* canvas,
                                         from, from_n, morph_t, tension);
     if (path.isEmpty()) return;
 
+    SkPoint end;
+    // Unbounded: the dot draws while any of it is on the plot, and a hole for
+    // one wholly off it falls outside the stroke's clip anyway.
+    const bool hole = tip_hole_r > 0.f && path.getLastPt(&end);
+    canvas->save();
+    if (hole) {
+        canvas->clipRRect(SkRRect::MakeOval(SkRect::MakeLTRB(
+                              end.fX - tip_hole_r, end.fY - tip_hole_r,
+                              end.fX + tip_hole_r, end.fY + tip_hole_r)),
+                          SkClipOp::kDifference, true);
+    }
     stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity);
+    canvas->restore();
 }
 
 void draw_close_gradient(SkCanvas* canvas,
@@ -492,6 +506,9 @@ void draw_tip_marker(SkCanvas* canvas,
 
     canvas->save();
     canvas->clipRect(clip);
+    // Ring and dot draw opaque into one layer that takes the alpha, so the dot
+    // doesn't stack its own over the ring's.
+    if (opacity < 1.f) canvas->saveLayerAlphaf(nullptr, opacity);
 
     // Ring first: it starts flush with the dot, and the dot paints over the
     // antialiased seam where the two meet.
@@ -499,7 +516,7 @@ void draw_tip_marker(SkCanvas* canvas,
         SkPaint ring;
         ring.setAntiAlias(true);
         ring.setColor(static_cast<SkColor>(line_color));
-        ring.setAlphaf(ring.getAlphaf() * f.alpha * opacity);
+        ring.setAlphaf(ring.getAlphaf() * f.alpha);
         ring.setStyle(SkPaint::kStroke_Style);
         ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
         canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
@@ -508,9 +525,9 @@ void draw_tip_marker(SkCanvas* canvas,
     SkPaint dot;
     dot.setAntiAlias(true);
     dot.setColor(static_cast<SkColor>(line_color));
-    dot.setAlphaf(dot.getAlphaf() * opacity);
     canvas->drawCircle(tip.fX, tip.fY, dot_r, dot);
 
+    if (opacity < 1.f) canvas->restore();
     canvas->restore();
 }
 

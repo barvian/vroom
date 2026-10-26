@@ -116,6 +116,10 @@ struct CandleSnapshot {
     // first frame matches the skeleton frame it replaced; without it every bar
     // would jump to full opacity the instant data landed.
     float skeleton_alpha = 1.f;
+    // This slot's own progress, used in place of the shared morph clock when
+    // set (>= 0). The loading reveal resolves the line centre first, so each
+    // bar has to land on the schedule of the line at its x, not on one clock.
+    float t = -1.f;
 };
 
 // One vertex of the loading line's morph, holding both ends of the animation
@@ -400,6 +404,9 @@ double price_fraction(const PriceBounds& bounds, double price);
 // independently of the price bounds (see CandleSnapshot):
 //   price_to_y(l, b, p) == y_at_fraction(l, price_fraction(b, p))
 float y_at_fraction(const Layout& layout, double frac);
+
+// Inverse of y_at_fraction. Returns 0.5 for a degenerate draw band.
+double fraction_at_y(const Layout& layout, float y);
 
 // Inverse of price_to_y: map a pixel y in the price pane back to a price.
 // Returns bounds.min for a degenerate range or draw band.

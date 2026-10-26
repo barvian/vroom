@@ -472,6 +472,14 @@ float y_at_fraction(const Layout& layout, double frac) {
     return bot - static_cast<float>(frac) * (bot - top);  // invert: high → low y
 }
 
+double fraction_at_y(const Layout& layout, float y) {
+    const float candle_area_h = price_pane_bottom(layout);
+    const float top = candle_area_h * layout.top_padding_frac;
+    const float bot = candle_area_h * (1.f - layout.bottom_padding_frac);
+    if (bot - top <= 0.f) return 0.5;
+    return (bot - y) / (bot - top);
+}
+
 float price_to_y(const Layout& layout,
                  const PriceBounds& bounds,
                  double price) {

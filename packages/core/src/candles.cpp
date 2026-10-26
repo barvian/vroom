@@ -142,6 +142,8 @@ void draw(SkCanvas* canvas,
     for (std::size_t k = slots; k-- > 0;) {
         const ::VroomCandle* to = (k < n) ? &visible[n - 1 - k] : nullptr;
         const CandleSnapshot* frm = (k < from_count) ? &from[k] : nullptr;
+        const float slot_t =
+            frm && frm->t >= 0.f ? std::min(frm->t, 1.f) : morph_t;
 
         SlotGeom g{};
         bool bull;
@@ -157,15 +159,17 @@ void draw(SkCanvas* canvas,
                 vroom::price_to_y(lay, bounds, to->close),
             };
             bull = to->close >= to->open;
-            if (frm) {
+            if (frm && slot_t >= 1.f) {
+                g = t;
+            } else if (frm) {
                 // The snapshot is in band fractions, so it lands on the same
                 // pixels it occupied pre-switch even though the bounds changed.
-                g.x = lerp(frm->x * area_w, t.x, morph_t);
-                g.open = lerp(vroom::y_at_fraction(lay, frm->open), t.open, morph_t);
-                g.high = lerp(vroom::y_at_fraction(lay, frm->high), t.high, morph_t);
-                g.low = lerp(vroom::y_at_fraction(lay, frm->low), t.low, morph_t);
+                g.x = lerp(frm->x * area_w, t.x, slot_t);
+                g.open = lerp(vroom::y_at_fraction(lay, frm->open), t.open, slot_t);
+                g.high = lerp(vroom::y_at_fraction(lay, frm->high), t.high, slot_t);
+                g.low = lerp(vroom::y_at_fraction(lay, frm->low), t.low, slot_t);
                 g.close =
-                    lerp(vroom::y_at_fraction(lay, frm->close), t.close, morph_t);
+                    lerp(vroom::y_at_fraction(lay, frm->close), t.close, slot_t);
             } else {
                 g = t;
                 // A slot with no counterpart: fade in rather than pop.
@@ -208,9 +212,9 @@ void draw(SkCanvas* canvas,
                     // lerp_argb covers the alpha channel too, so the bar's
                     // opacity rides in on the same blend as its color.
                     c = lerp_argb(scale_alpha(skeleton_color, frm->skeleton_alpha),
-                                  c, morph_t);
+                                  c, slot_t);
                 } else if (flip) {
-                    c = lerp_argb(bull ? c_bear : c_bull, c, morph_t);
+                    c = lerp_argb(bull ? c_bear : c_bull, c, slot_t);
                 }
                 return scale_alpha(c, alpha);
             };

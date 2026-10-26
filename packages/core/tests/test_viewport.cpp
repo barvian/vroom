@@ -843,6 +843,16 @@ TEST_CASE("price_fraction / y_at_fraction") {
         CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(80.f));
     }
 
+    SUBCASE("fraction_at_y inverts y_at_fraction, padding included") {
+        l.top_padding_frac = 0.1f;
+        l.bottom_padding_frac = 0.1f;
+        l.x_axis_height_px = 200.f;
+        for (double f : {-0.2, 0.0, 0.3, 1.0, 1.4}) {
+            CHECK(vroom::fraction_at_y(l, vroom::y_at_fraction(l, f)) ==
+                  doctest::Approx(f));
+        }
+    }
+
     SUBCASE("price_fraction maps min/mid/max to 0/0.5/1") {
         PriceBounds b{10.0, 30.0};
         CHECK(vroom::price_fraction(b, 10.0) == doctest::Approx(0.0));

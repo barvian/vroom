@@ -154,8 +154,9 @@ struct VroomChart {
     // growing out of it run off one clock and can't finish apart.
     bool loading_line_revealing = false;
     float loading_reveal = 1.f;
-    // Cleared once the host drives the interval morph itself (a live tick
-    // mid-reveal, say); the line carries on resolving on its own.
+    // Set while the reveal owns the bars. The host's morph calls are ignored
+    // meanwhile: a live tick folds in through the per-frame re-aim instead, so
+    // the bars can't come off the line's clock.
     bool loading_reveal_drives_morph = false;
 
     // Interval morph: the outgoing candle geometry captured when a timeframe
@@ -682,14 +683,19 @@ struct VroomChart {
     // aim at.
     std::vector<vroom::LinePoint> aim_loading_line(float elapsed) const;
 
-    // Stage 3. Captures every candle collapsed onto its own close at
-    // zero alpha and hands it to the interval-morph machinery, so the existing
-    // slot lerp grows each bar outward from the line while candles::draw blends
-    // its colour up out of nothing. Also releases `loading`, letting the axes,
+    // Stage 3. Hands the candles to the interval-morph machinery, each
+    // collapsed onto the line at zero alpha (see aim_reveal_slots), so the
+    // slot lerp grows each bar out of the line while candles::draw blends its
+    // colour up out of nothing. Also releases `loading`, letting the axes,
     // price badge and panes come back. Runs on its own clock (see
     // `loading_reveal`); called straight after begin_loading_morph, it skips
     // stage 2.
     void begin_loading_reveal();
+
+    // Re-captures the reveal's bars against the line as it stands this frame:
+    // each slot on the line's own progress at its x, collapsed to the point
+    // that keeps it growing about the line (see loading_wave::reveal_bar_origin).
+    void aim_reveal_slots();
 
     // True when the line tip's pulse ring is on screen and looping. Gated on
     // line mode and on having data, so a chart that isn't showing the ring can

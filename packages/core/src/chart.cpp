@@ -1033,11 +1033,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         // rides the bar's close edge instead of landing on the new price a
         // whole animation early. The pairing rule is the tip marker's: the
         // capture only stands for the newest candle while that candle is the
-        // one at the right edge.
+        // one at the right edge. Not through a loading reveal: the bars grow
+        // out of the loading line, but the badge has its own entrance below.
         const auto price_anchor = vroom::tip_anchor::at(
             range.start, range.end, candles.size(), reshape);
         const vroom::CandleSnapshot* price_from =
-            (price_anchor.use_morph && morph_src && morph_n_draw > 0)
+            (!loading_line_revealing && price_anchor.use_morph && morph_src &&
+             morph_n_draw > 0)
                 ? morph_src
                 : nullptr;
         // Through a loading reveal it comes in on Liveline's timing.
@@ -1203,13 +1205,15 @@ void VroomChart::begin_frame() {
         loading_reveal =
             vroom::loading_wave::reveal_step(loading_reveal, loading_dt);
         if (loading_reveal_drives_morph) {
-            // Smoothstep, Liveline's growth curve for the bars, so their size
-            // and their fade-up stay in step.
+            // Just holds the morph open; each bar runs on its own slot clock,
+            // re-aimed every frame at the line as it is drawn this frame.
             interval_morph_t =
                 vroom::loading_wave::ramp(loading_reveal, 0.f, 1.f);
+            if (loading_reveal < 1.f) aim_reveal_slots();
         }
         if (loading_reveal >= 1.f) {
             if (loading_reveal_drives_morph) {
+                loading_reveal_drives_morph = false;
                 vroom_chart_set_interval_morph(this, 1.f);
             }
             loading_line_revealing = false;
@@ -1229,6 +1233,7 @@ void VroomChart::set_loading(bool on, bool animate) {
     // switched again mid-load), and it should leave nothing behind — including
     // bars the reveal's clock was still growing, which nothing else would land.
     if (loading_line_revealing && loading_reveal_drives_morph) {
+        loading_reveal_drives_morph = false;
         vroom_chart_set_interval_morph(this, 1.f);
     }
     loading_line.clear();
@@ -1334,37 +1339,44 @@ void VroomChart::begin_loading_morph() {
     mark_dirty();
 }
 
-void VroomChart::begin_loading_reveal() {
-    if (!loading) return;
-    loading = false;
-
+void VroomChart::aim_reveal_slots() {
+    morph_from.clear();
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
+    const float pane_h = vroom::price_pane_bottom(lay);
     const auto target = loading_target();
-    if (target.n == 0 || area_w <= 0.f) {
-        loading_line.clear();
-        mark_dirty();
-        return;
-    }
+    if (target.n == 0 || area_w <= 0.f || pane_h <= 0.f) return;
 
     const int64_t window_ms = visible_end_ms - visible_start_ms;
+    const float elapsed = loading_animate ? loading_elapsed_s : 0.f;
 
     // Right-to-left, matching how the morph machinery indexes slots (slot 0 =
     // newest bar at the right edge).
-    morph_from.clear();
     morph_from.reserve(target.n);
     for (std::size_t slot = 0; slot < target.n; ++slot) {
         const ::VroomCandle& c = target.visible[target.n - 1 - slot];
-        const float center = static_cast<float>(
-            vroom::price_fraction(target.bounds, c.close));
 
         vroom::CandleSnapshot s{};
         s.x = vroom::candle_center_x(lay, c.time_ms, candle_duration_ms,
                                      visible_start_ms, window_ms) / area_w;
-        // Every price collapsed onto the close, so the slot starts as a
-        // zero-height sliver sitting on the line and the existing lerp is what
-        // grows it out to full open/high/low/close.
-        s.open = s.high = s.low = s.close = center;
+        // The line's own progress and source at this bar's vertex, so the bar
+        // can't drift off the line as the wave travels or as the centre
+        // resolves ahead of the edges.
+        s.t = vroom::loading_wave::resolve(loading_reveal, s.x);
+        const auto y_of = [&](double price) {
+            return vroom::y_at_fraction(
+                lay, static_cast<float>(vroom::price_fraction(target.bounds, price)));
+        };
+        const float close_y = y_of(c.close);
+        const float source_y =
+            pane_h * vroom::loading_wave::reveal_source_y_frac(
+                         elapsed, loading_frozen_s, s.x, close_y / pane_h,
+                         loading_line_t);
+        const float mid_y = 0.5f * (close_y + y_of(c.open));
+        const float origin = static_cast<float>(vroom::fraction_at_y(
+            lay, vroom::loading_wave::reveal_bar_origin(source_y, close_y,
+                                                        mid_y, s.t)));
+        s.open = s.high = s.low = s.close = origin;
         s.bull = c.close >= c.open;
         // Starts the colour blend from fully transparent rather than from the
         // skeleton grey: the bar emerges from the line, so a grey body would
@@ -1372,6 +1384,20 @@ void VroomChart::begin_loading_reveal() {
         s.skeleton = true;
         s.skeleton_alpha = 0.f;
         morph_from.push_back(s);
+    }
+}
+
+void VroomChart::begin_loading_reveal() {
+    if (!loading) return;
+    loading = false;
+
+    const auto target = loading_target();
+    loading_reveal = 0.f;
+    aim_reveal_slots();
+    if (morph_from.empty()) {
+        loading_line.clear();
+        mark_dirty();
+        return;
     }
 
     morph_from_bounds = target.bounds;
@@ -1386,7 +1412,6 @@ void VroomChart::begin_loading_reveal() {
     // instead (see labels::interval_phase).
     morph_is_stream = true;
     loading_line_revealing = true;
-    loading_reveal = 0.f;
     loading_reveal_drives_morph = true;
     mark_dirty();
 }

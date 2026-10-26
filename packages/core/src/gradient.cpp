@@ -45,8 +45,8 @@ sk_sp<SkShader> linear_alpha_ramp(const SkPoint pts[2],
 
 sk_sp<SkShader> legible_fade(const SkPoint pts[2]) {
     constexpr int kN = 14;
-    constexpr float kCurve[kN] = {0.f,   .005f, .023f, .058f, .12f,  .224f, .393f,
-                                  .607f, .776f, .88f,  .942f, .977f, .995f, 1.f};
+    constexpr float kCurve[kN] = {0.f,   .004f, .018f, .046f, .096f, .179f, .314f,
+                                  .486f, .621f, .704f, .754f, .782f, .796f, .8f};
     float pos[kN];
     for (int i = 0; i < kN; ++i) pos[i] = .7f * static_cast<float>(i) / (kN - 1);
 #if VROOM_SK_MODERN_GRADIENT

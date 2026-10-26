@@ -29,6 +29,7 @@
 #include "labels.h"
 #include "line_morph.h"
 #include "price_format.h"
+#include "price_indicator.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -98,6 +99,13 @@ struct VroomChart {
     // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
     float morph_collapse = 0.f;
     float morph_fade = 0.f;
+    // The current-price line's style blend, riding `morph_fade`. Settled unless
+    // the host began one (vroom_chart_begin_price_indicator_morph);
+    // set_chart_type settles it again.
+    vroom::price_indicator_style::Morph price_indicator_morph{};
+    // The accent the indicator resolved last frame, before that blend: where
+    // the next begin's color starts.
+    uint32_t price_indicator_accent = 0;
 
     // Phase of the line-tip pulse, in seconds into its cycle. Unlike every other
     // animation here this one is core-driven: it loops with no endpoint for the
@@ -127,19 +135,28 @@ struct VroomChart {
     // Fades the line in on arrival, so a chart that resolves instantly from
     // cache doesn't flash a placeholder.
     float loading_fade_in = 0.f;
+    // The line's own frame clock (see loading_wave::frame_seconds), restarted
+    // with the line so it doesn't span an idle gap.
+    std::chrono::steady_clock::time_point loading_tick{};
+    bool loading_ticking = false;
 
     // The line's morph vertices, left to right, captured when the data lands.
     // Empty means stage 1 — nothing to morph toward yet — which is what
     // loading_line::draw switches on.
     std::vector<vroom::LinePoint> loading_line;
-    // Stage 2's progress, 0 = the frozen sine, 1 = through the candle centres.
+    // The wave's phase when stage 2 froze it.
+    float loading_frozen_s = 0.f;
+    // Stage 2's progress, 0 = the frozen sine, 1 = through the candle closes.
     // Parked at 1 when no morph is running.
     float loading_line_t = 1.f;
-    // Set for stage 3, where the line rides `interval_morph_t` out on the same
-    // clock as the candles growing out of it. A flag rather than its own float
-    // because the two have to finish together to avoid a line left hanging over
-    // a settled chart.
+    // Set for stage 3, the hand-off proper. begin_frame eases `loading_reveal`
+    // 0 → 1 and derives `interval_morph_t` from it, so the line and the candles
+    // growing out of it run off one clock and can't finish apart.
     bool loading_line_revealing = false;
+    float loading_reveal = 1.f;
+    // Cleared once the host drives the interval morph itself (a live tick
+    // mid-reveal, say); the line carries on resolving on its own.
+    bool loading_reveal_drives_morph = false;
 
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
@@ -435,6 +452,7 @@ struct VroomChart {
         std::string text;
         std::string quantity;
         int32_t     flags = 0;  // VroomPriceLineFlags
+        uint32_t    badge_text = 0;  // 0 inherits the theme's BADGE_TEXT
     };
     std::vector<StoredPriceLine> price_lines;
     VroomPriceLineStyle          price_line_style{};
@@ -646,12 +664,8 @@ struct VroomChart {
 
     // Stage 2. Call *after* pushing the real candles: it needs them to know
     // where the line is heading. Freezes the sine at its current phase and
-    // pairs each vertex with the vertical centre of the candle that will occupy
+    // pairs each vertex with the close of the candle that will occupy
     // that column, then hands `loading_line_t` to the host to drive 0 → 1.
-    //
-    // Freezing rather than letting the wave run underneath is deliberate — a
-    // moving source makes the morph read as two animations fighting instead of
-    // one shape resolving.
     void begin_loading_morph();
 
     // The visible slice and price bounds the hand-off aims at, as draw_chart
@@ -663,11 +677,18 @@ struct VroomChart {
     };
     LoadingTarget loading_target() const;
 
-    // Stage 3. Captures every candle collapsed onto its own vertical centre at
+    // The line's vertices aimed at the candles as they're framed right now,
+    // each starting from the wave at phase `elapsed`. Empty with nothing to
+    // aim at.
+    std::vector<vroom::LinePoint> aim_loading_line(float elapsed) const;
+
+    // Stage 3. Captures every candle collapsed onto its own close at
     // zero alpha and hands it to the interval-morph machinery, so the existing
     // slot lerp grows each bar outward from the line while candles::draw blends
     // its colour up out of nothing. Also releases `loading`, letting the axes,
-    // price badge and panes come back.
+    // price badge and panes come back. Runs on its own clock (see
+    // `loading_reveal`); called straight after begin_loading_morph, it skips
+    // stage 2.
     void begin_loading_reveal();
 
     // True when the line tip's pulse ring is on screen and looping. Gated on

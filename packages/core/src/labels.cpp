@@ -20,6 +20,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "loading_wave.h"
 #include "price_format.h"
 #include "price_line_layout.h"
 #include "ticks.h"
@@ -118,6 +119,11 @@ void apply_envelope(std::vector<XLabelFade>& fades, float opacity) {
 }  // namespace
 
 IntervalPhase interval_phase(const VroomChart& chart) {
+    // A loading reveal brings the whole axis up together, Liveline's grid ramp,
+    // rather than each label on a clock that a busy host thread can stretch.
+    if (chart.loading_line_revealing) {
+        return {true, false, loading_wave::axis_alpha(chart.loading_reveal)};
+    }
     if (chart.morph_from.empty() || chart.interval_morph_t >= 1.f) return {};
     // A live update keeps the same interval, so its ticks are still the right
     // ones — they stay put and keep their own per-label fades.
@@ -211,6 +217,7 @@ void draw_y_labels(SkCanvas* canvas,
     SkPaint text_paint;
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
+    const float text_alpha = text_paint.getAlphaf();
 
     // Horizontal center of the y-axis container ([width - y_axis_width, width]).
     // Labels (and the price box) center on this so their text shares a column.
@@ -233,7 +240,7 @@ void draw_y_labels(SkCanvas* canvas,
         if (baseline_y - cap_h < 0.f) continue;
         if (baseline_y > candle_area_h) continue;
 
-        text_paint.setAlphaf(f.opacity * lay.y_axis_opacity);
+        text_paint.setAlphaf(text_alpha * f.opacity * lay.y_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
 }
@@ -377,6 +384,7 @@ void draw_x_labels(SkCanvas* canvas,
     SkPaint text_paint;
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
+    const float text_alpha = text_paint.getAlphaf();
 
     // A label fading out keeps sliding with the pan, so it can poke past the
     // plot edge before it is gone; the clip keeps it out of the y-axis column.
@@ -399,7 +407,7 @@ void draw_x_labels(SkCanvas* canvas,
             buf, len, SkTextEncoding::kUTF8);
         const float text_x = x_center - text_w * 0.5f;
 
-        text_paint.setAlphaf(f.label_opacity * lay.x_axis_opacity);
+        text_paint.setAlphaf(text_alpha * f.label_opacity * lay.x_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
     canvas->restore();

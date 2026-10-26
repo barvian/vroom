@@ -341,6 +341,7 @@ typedef struct VroomPriceLine {
     const char* text;        // body label
     const char* quantity;    // trailing solid-fill segment
     int32_t     flags;       // bitwise-or of VroomPriceLineFlags
+    uint32_t    badge_text;  // 0xAARRGGBB axis-badge + quantity text; 0 inherits VROOM_COLOR_BADGE_TEXT
 } VroomPriceLine;
 
 // Layout/style shared by every price line, so the per-line struct stays small.
@@ -374,7 +375,7 @@ typedef enum {
 } VroomCrosshairTimeFormat;
 
 // Colors come from the theme (crosshair lines, crosshair target fill, badge text)
-// unless badge_color overrides the badge fill.
+// unless badge_color / badge_text override the badge fill / text.
 // A zero-initialized struct is the advanced crosshair as it has always looked.
 typedef struct VroomCrosshairStyle {
     int32_t mode;           // VroomCrosshairMode
@@ -386,6 +387,7 @@ typedef struct VroomCrosshairStyle {
     int32_t dim_ahead;      // simple: dim the plot right of the line
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
     uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
+    uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT
 } VroomCrosshairStyle;
 
 // Replaces the crosshair style. A null style restores the zero-initialized
@@ -496,7 +498,9 @@ typedef enum {
     // the TypeScript theme maps hardcode the indices below it.
     VROOM_COLOR_RESERVED_7_,
     // Text drawn on a filled badge: the current-price indicator, the crosshair's
-    // axis badges, and price-line pills. Defaults to white.
+    // axis badges, and price-line pills. Defaults to white. Each of those can
+    // override it (VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT, the crosshair style's
+    // badge_text, VroomPriceLine::badge_text).
     VROOM_COLOR_BADGE_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
@@ -509,6 +513,7 @@ typedef enum {
     // The loading line. Its own alpha is honored, then scaled by the fade-in
     // and the stage-3 fade-out, so an opaque color here is the usual choice.
     VROOM_COLOR_SKELETON,
+    VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT,  // current-price badge text; 0 alpha => inherit BADGE_TEXT
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 
@@ -532,6 +537,13 @@ typedef enum {
     VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
     VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
     VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
+    // The current-price indicator's dashed line. Dash and gap are the visible
+    // lengths, round caps included (see price_indicator.h).
+    VROOM_FLOAT_PRICE_INDICATOR_DASH_PX,    // dash length px
+    VROOM_FLOAT_PRICE_INDICATOR_GAP_PX,     // gap px; 0 draws a solid line
+    VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px
+    VROOM_FLOAT_PRICE_INDICATOR_OPACITY,    // 0..1, multiplies the accent's alpha
+    VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP,  // 0/1: round the dash ends
     VROOM_FLOAT_PRICE_DECIMALS,          // fixed price-label decimals, rounded; < 0 = automatic
     VROOM_FLOAT_MIN_PRICE_RANGE_RATIO,   // auto-fit span floor as a fraction of mid price; <= 0 = off
     VROOM_FLOAT_COUNT_
@@ -602,6 +614,14 @@ void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 // both 1 = line. Driven per-frame by the host animation loop; set_chart_type
 // snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
+
+// Blends the current-price line's style (the PRICE_INDICATOR_* keys) and the
+// line and badge's accent color into whatever the theme sets next, over a
+// candle↔line morph heading to `mode` (0 = candles, 1 = line). Call it before
+// pushing the new theme. The blend rides set_morph's `fade` from where it
+// stands now, and set_chart_type ends it. Without this call a price-line theme
+// change snaps.
+void vroom_chart_begin_price_indicator_morph(VroomChart* chart, int32_t mode);
 
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.
@@ -690,30 +710,32 @@ void vroom_chart_begin_stream_morph(VroomChart* chart);
 // chart is allowed to go idle instead of pinning a redraw loop.
 //
 // Passing 0 abandons any hand-off in flight, which is what a failed or
-// superseded fetch wants. To hand off to data instead, use the two stages
+// superseded fetch wants. To hand off to data instead, use the hand-off calls
 // below.
 void vroom_chart_set_loading(VroomChart* chart, int32_t on, int32_t animate);
 
-// Hand-off stage one: reshapes the line into the series. Freezes the sine where
-// it is and aims each vertex at the vertical centre of the candle that will
-// occupy its column, so the line resolves into the silhouette of the data.
+// Starts the hand-off: aims each vertex of the line at the close of the candle
+// that will occupy its column.
 //
-// Call *after* set_candles — it reads them to know where to aim — then drive
-// vroom_chart_set_loading_morph from 0 to 1. The axes and the candles stay
-// suppressed throughout; stage two brings them in. No-op if the line isn't up.
+// Call *after* set_candles — it reads them to know where to aim — then
+// vroom_chart_begin_loading_reveal. Optionally drive
+// vroom_chart_set_loading_morph from 0 to 1 in between to reshape the line onto
+// the closes first, under a frozen sine; the axes and candles stay suppressed
+// while you do. No-op if the line isn't up.
 void vroom_chart_begin_loading_morph(VroomChart* chart);
 
-// Advances stage one. `t` (clamped to 0..1) is the eased progress: 0 renders the
-// frozen sine, 1 the polyline through the candle centres.
+// Optional reshape before the reveal. `t` (clamped to 0..1) is the eased
+// progress: 0 renders the frozen sine, 1 the polyline through the candle closes.
 void vroom_chart_set_loading_morph(VroomChart* chart, float t);
 
-// Hand-off stage two: the candles take over. Captures each one collapsed onto
-// its own vertical centre at zero alpha and leaves the loading state, so the
-// bars grow outward from the line and their color fades up as it fades out.
+// The candles take over. Leaves the loading state and runs the reveal on the
+// core's own clock (about 0.9s): the line resolves onto the closes, centre
+// first, while the bars grow out of it and their color fades up. Over candles
+// the line gives way to them; in line mode it becomes the series line.
 //
-// Call once stage one has reached 1, then drive vroom_chart_set_interval_morph
-// from 0 to 1 as usual — the line's fade-out rides that same clock, so the two
-// finish together. No-op if the line isn't up.
+// Keep rendering while vroom_chart_is_animating is true. Driving
+// vroom_chart_set_interval_morph yourself takes the bars off the reveal's
+// clock. No-op if the line isn't up.
 void vroom_chart_begin_loading_reveal(VroomChart* chart);
 
 // Advances the morph started by either begin_*_morph above. `t` (clamped to

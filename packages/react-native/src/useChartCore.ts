@@ -297,6 +297,7 @@ function priceLinesToSpec(cfg: PriceLinesProp) {
         (cfg.hasCloseHandler && l.closable !== false ? PRICE_LINE_CLOSABLE : 0) |
         (l.axisLabel !== false ? PRICE_LINE_AXIS_LABEL : 0) |
         (l.extendLeft !== false ? PRICE_LINE_EXTEND_LEFT : 0),
+      badgeText: (l.badgeTextColor != null ? parseColor(l.badgeTextColor) : null) ?? 0,
     })),
     bodyBg:
       (cfg.style?.bodyBackground != null ? parseColor(cfg.style.bodyBackground) : null) ??
@@ -451,6 +452,9 @@ export function useChartCore(
     candles: Candle[];
     seriesKey?: string;
   } | null>(null);
+  // The chart type the theme was last pushed for, keyed by handle like
+  // prevDataRef, so the data effect can tell a candle↔line switch apart.
+  const themedTypeRef = useRef<{ handle: ChartHandle; line: boolean } | null>(null);
   const intervalMorphRaf = useRef<number | null>(null);
   const streamRaf = useRef<number | null>(null);
   // Where an in-flight stream shift is headed, so cancelling it can land there
@@ -504,39 +508,22 @@ export function useChartCore(
   onFrameRef.current = transition?.onFrame;
   const seriesKey = transition?.seriesKey;
 
-  // Set only while the loading hand-off is in its *first* stage, which is the
-  // one an interruption can't simply land: stage one leaves `loading` set in
-  // the core, and only stage two releases it.
-  const loadingHandoffRef = useRef(false);
-
   // Stop an in-flight interval morph and land the core on the new candles.
   const endIntervalMorph = useCallback(() => {
     if (intervalMorphRaf.current != null) {
       cancelAnimationFrame(intervalMorphRaf.current);
       intervalMorphRaf.current = null;
     }
-    const h = handleRef.current;
-    // Walk a half-finished hand-off through the rest of its stages rather than
-    // just stopping the clock, or the core would be left drawing the loading
-    // line over the data it was supposed to hand off to.
-    if (loadingHandoffRef.current) {
-      loadingHandoffRef.current = false;
-      h?.setLoadingMorph(1);
-      h?.beginLoadingReveal();
-    }
-    h?.setIntervalMorph(1);
+    handleRef.current?.setIntervalMorph(1);
   }, []);
 
   // Runs the interval morph clock. The core holds the pre-swap geometry (see
   // beginIntervalMorph) and reshapes each candle slot toward its new counterpart.
-  // `durationMs` overrides transitionMs for the loading hand-off, which splits
-  // it across two stages.
-  const startIntervalMorph = useCallback((h: ChartHandle, durationMs?: number) => {
+  const startIntervalMorph = useCallback((h: ChartHandle) => {
     const { ms, easing } = animRef.current;
-    const dur = durationMs ?? ms;
     const start = performance.now();
     const step = (now: number) => {
-      const p = Math.min(1, (now - start) / dur);
+      const p = Math.min(1, (now - start) / ms);
       h.setIntervalMorph(p < 1 ? ease(easing, p) : 1);
       const pic = h.render();
       if (pic) onFrameRef.current?.(pic);
@@ -545,43 +532,14 @@ export function useChartCore(
     intervalMorphRaf.current = requestAnimationFrame(step);
   }, []);
 
-  // Hands the loading line over to the data that just landed, in two stages:
-  // the line reshapes into the series' silhouette, then the candles grow out of
-  // it while it fades.
-  //
-  // Sequential rather than overlapped — the shape has to read as the data
-  // before the bars start emerging from it — so the two split transitionMs and
-  // the whole hand-off costs what any other transition costs.
-  const startLoadingHandoff = useCallback(
-    (h: ChartHandle) => {
-      const { ms, easing } = animRef.current;
-      const half = ms / 2;
-      loadingHandoffRef.current = true;
-      h.beginLoadingMorph();
-      const start = performance.now();
-      const step = (now: number) => {
-        const p = Math.min(1, (now - start) / half);
-        h.setLoadingMorph(p < 1 ? ease(easing, p) : 1);
-        const pic = h.render();
-        if (pic) onFrameRef.current?.(pic);
-        if (p < 1) {
-          intervalMorphRaf.current = requestAnimationFrame(step);
-          return;
-        }
-        intervalMorphRaf.current = null;
-        // Past here an interruption is an ordinary interval morph again: the
-        // core has left the loading state, so landing the clock is enough.
-        loadingHandoffRef.current = false;
-        // Stage two rides the interval-morph clock, which also carries the
-        // line's fade-out — so the bars' growth and the line's exit finish
-        // together instead of one outlasting the other.
-        h.beginLoadingReveal();
-        startIntervalMorph(h, half);
-      };
-      intervalMorphRaf.current = requestAnimationFrame(step);
-    },
-    [startIntervalMorph],
-  );
+  // Hands the loading line over to the data that just landed: the line
+  // resolves onto the closes while the candles grow out of it. The core runs
+  // the reveal on its own clock, Liveline's, and reports it through
+  // isAnimating, so the chart's animation loop carries it from here.
+  const startLoadingHandoff = useCallback((h: ChartHandle) => {
+    h.beginLoadingMorph();
+    h.beginLoadingReveal();
+  }, []);
 
   // Stops an in-flight stream animation and puts the chart somewhere coherent.
   //
@@ -689,6 +647,11 @@ export function useChartCore(
   // decides if the next data push is a hand-off. Distinct from `showLoadingLine`:
   // that is this render's intent, this is what's on screen.
   const lineUpRef = useRef(false);
+  // Set when the line was asked for before the chart had a size to draw it in.
+  // Data from a cache can land before the first layout, and the hand-off should
+  // still play rather than the series appearing as if nothing had been loading.
+  const lineMissedRef = useRef(false);
+  if (showLoadingLine && !handleRef.current) lineMissedRef.current = true;
 
   // Stable deps so inline `theme={{...}}` / `rsi={{...}}` literals don't re-run
   // the effect every render — only when the actual values change.
@@ -712,6 +675,9 @@ export function useChartCore(
       chartTypeHandleRef.current = h;
       // 0 = candles (the core default, also when the prop is omitted), 1 = line.
       h.setChartType(chartType === 'line' ? 1 : 0);
+      // Same race for the axis strips: VroomChart snaps them only after this
+      // effect stores its picture, which the next commit would repaint.
+      h.setAxisCollapse(theme?.showYAxis === false ? 1 : 0, theme?.showXAxis === false ? 1 : 0);
     }
     h.setSize(size.width, size.height, size.pxRatio ?? 1);
     // Ahead of setCandles, like setDefaultCandleWidth below: the default framing
@@ -735,7 +701,9 @@ export function useChartCore(
     // morphs into it, a different asset resets it.
     let morphing = false;
 
-    if (showLoadingLine) {
+    const lineMissed = lineMissedRef.current && candles.length > 0;
+    lineMissedRef.current = false;
+    if (showLoadingLine || lineMissed) {
       // Clear the core's buffer, which the `candles.length > 0` gate below
       // otherwise never does: pushing an empty array is treated as "hold the
       // last frame" everywhere else, so a chart switching assets would still be
@@ -874,8 +842,8 @@ export function useChartCore(
             !animRef.current.reduceMotion &&
             onFrameRef.current != null;
           // Snap path only. The hand-off itself starts after setCandles and the
-          // framing below: both its stages aim at where the candles will
-          // actually sit, so neither can be set up until they're there.
+          // framing below: it aims at where the candles will actually sit, so
+          // it can't be set up until they're there.
           if (!handOff) h.setLoading(false, true);
         }
 
@@ -910,9 +878,12 @@ export function useChartCore(
         } else if (transitionKind === 'reset') {
           h.resetView();
         }
-        // After setCandles and the framing above, so the line aims at — and the
-        // candles grow from — the geometry each bar will actually occupy.
-        if (handOff) startLoadingHandoff(h);
+        // After setCandles and the framing, explicit range included, so the
+        // candles grow from the slots each bar will actually occupy.
+        if (handOff) {
+          if (explicit) h.setVisibleRange(startMs, endMs);
+          startLoadingHandoff(h);
+        }
         prevDataRef.current = { handle: h, candles, seriesKey };
       }
     }
@@ -921,6 +892,22 @@ export function useChartCore(
     }
     // Later chartType changes are driven by VroomChart's morph. This effect only
     // snaps a fresh handle (above) so the picture stored below matches the prop.
+    //
+    // A switch usually brings its own price-line style and accents, so the core
+    // captures the outgoing look before the sweep below replaces it and blends
+    // between them on that morph's fade. A fresh handle, transitionMs=0 and
+    // reduced motion snap.
+    const line = chartType === 'line';
+    const themed = themedTypeRef.current;
+    if (
+      themed?.handle === h &&
+      themed.line !== line &&
+      animRef.current.ms > 0 &&
+      !animRef.current.reduceMotion
+    ) {
+      h.beginPriceIndicatorMorph(line ? 1 : 0);
+    }
+    themedTypeRef.current = { handle: h, line };
     if (theme) {
       applyTheme(h, theme);
     }
@@ -960,8 +947,9 @@ export function useChartCore(
     if (!morphing) setPicture(h.render());
     // theme/rsi/macd/atr/movingAverages/vwap/bollingerBands/ichimoku/
     // fairValueGaps/volume/priceLines/footprints are represented by their *Key
-    // deps. chartType is omitted on purpose: only a fresh handle reads it, and
-    // a later change belongs to VroomChart's morph.
+    // deps. chartType is omitted on purpose: only a fresh handle and the
+    // price-line morph capture read it, and a later change belongs to
+    // VroomChart's morph.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, showLoadingLine, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
 

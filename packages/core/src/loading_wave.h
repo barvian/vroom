@@ -1,16 +1,9 @@
 // The idle animation the loading line rides while a series is being fetched.
 // A position across the plot and an elapsed time in; a vertical offset and a
-// brightness out.
+// brightness out. Also the curves of the hand-off into the data, further down.
 //
-// Three sines, not one. A single sine is too regular to read as anything but a
-// test pattern — the eye finds the repeat immediately and the line stops
-// looking like it's waiting for something. Summing three frequencies that
-// aren't multiples of each other, each drifting at its own rate, gives a curve
-// that keeps rearranging itself.
-//
-// The other half of the effect is restraint: a small amplitude and a faint,
-// slowly breathing opacity. The line is a hint that the chart is alive, not a
-// feature competing with the data about to replace it.
+// A single sine travelling leftward, the way a live series scrolls, kept small
+// and faint: a hint that the chart is alive, not competition for the data.
 //
 // Approach adapted from Liveline (github.com/benjitaylor/liveline, MIT), whose
 // loading state solves the same problem well.
@@ -26,69 +19,29 @@ namespace vroom::loading_wave {
 
 constexpr float kTwoPi = 6.283185307179586f;
 
-// One component of the curve.
-struct Harmonic {
-    float freq;    // radians across the full plot width
-    float weight;  // share of the amplitude
-    float drift;   // multiple of the base phase speed
-};
+// Radians across the full plot width: about one crest per screen.
+constexpr float kFreq = 6.3f;
 
-// Frequencies deliberately not integer multiples of one another: harmonics
-// would lock into one repeating shape, which is the thing being avoided. The
-// drifts are all multiples of a quarter only so the whole curve has an exact
-// period to wrap the phase clock on — see kPeriodSeconds.
-//
-// Four components, weighted toward the middle of the range, because the curve
-// has to sit convincingly next to candlesticks. A gentler two-or-three-crest
-// undulation suits a smooth live line chart, but against minute-resolution
-// price action it reads as decorative, and it makes the hand-off a real change
-// of shape rather than the same curve coming into focus.
-constexpr Harmonic kHarmonics[] = {
-    {14.0f, 0.40f, 1.00f},  // carrier — a little over two crests per screen
-    {25.0f, 0.28f, 1.25f},  // ripple, running ahead
-    {45.0f, 0.16f, 1.50f},  // fine texture, ahead again
-    {6.0f, 0.16f, 0.75f},   // a slow swell, running behind
-};
-constexpr int kHarmonicCount = 4;
-
-// Base phase speed. Slow on purpose: this plays under a chart that has nothing
-// to say yet, and anything quicker reads as activity.
 constexpr float kDriftRadPerSecond = 1.0f;
 
-// One full cycle of the *whole* curve. The drifts differ by quarters, so every
-// component returns to its starting phase only after four base cycles — which
-// is also why the shape takes ~25s to come back around. Callers wrap elapsed
-// time by this so a chart left loading doesn't lose float precision on the
-// phase, and wrapping here is seamless because it is a true period.
-constexpr float kPeriodSeconds = 4.f * kTwoPi / kDriftRadPerSecond;
+// What callers wrap elapsed time by, so a chart left loading doesn't lose
+// float precision on the phase. Ten of the sine's cycles, so the breath below
+// also fits a whole number of times and the wrap is seamless.
+constexpr float kPeriodSeconds = 10.f * kTwoPi / kDriftRadPerSecond;
 
-// Peak displacement from the centreline, as a fraction of the pane height. The
-// components rarely peak together, so the curve typically occupies well under
-// this — it is a bound, not the height it looks.
-constexpr float kAmplitudeFrac = 0.10f;
+// Peak displacement from the centreline, as a fraction of the pane height.
+constexpr float kAmplitudeFrac = 0.07f;
 
-// Breathing opacity. A pulse around full strength, not a dimmer: how quiet the
-// line reads is the *color's* job — it inherits the gridline tone by default —
-// and scaling an already-recessive grey down by a third again would leave the
-// curve indistinguishable from the background.
-constexpr float kBreathMin = 0.75f;
-constexpr float kBreathMax = 1.00f;
-// Ten breaths per curve cycle, so the breath wraps with the phase (~2.5s each)
-// and never syncs with the drift into one combined pulse.
-constexpr float kBreathCyclesPerPeriod = 10.f;
+// Breathing opacity, a dimmer on the color.
+constexpr float kBreathMin = 0.14f;
+constexpr float kBreathMax = 0.30f;
+// Liveline breathes every 2.4s; 26 per wrap is the nearest whole count.
+constexpr float kBreathCyclesPerPeriod = 26.f;
 
 // Offset at `x_frac` (0 = left edge of the plot, 1 = right) and `elapsed_s`, in
-// -1 .. 1. The weights sum to 1, so that range is tight. Phase runs as
-// (k*x - w*t), which walks the crests rightward — the direction the series
-// grows. Time outside one period is fine; sin wraps on its own.
+// -1 .. 1. Phase runs as (k*x + w*t), which walks the crests leftward.
 inline float at(float elapsed_s, float x_frac) {
-    const float base = kDriftRadPerSecond * elapsed_s;
-    float sum = 0.f;
-    for (int i = 0; i < kHarmonicCount; ++i) {
-        const Harmonic& h = kHarmonics[i];
-        sum += h.weight * std::sin(h.freq * x_frac - h.drift * base);
-    }
-    return sum;
+    return std::sin(kFreq * x_frac + kDriftRadPerSecond * elapsed_s);
 }
 
 // The curve's y as a fraction of the pane height (0 = pane top, 1 = bottom),
@@ -106,32 +59,111 @@ inline float breath(float elapsed_s) {
                                  kPeriodSeconds);
 }
 
-// The tightest component in the table above.
-constexpr float max_freq() {
-    float m = 0.f;
-    for (int i = 0; i < kHarmonicCount; ++i) {
-        if (kHarmonics[i].freq > m) m = kHarmonics[i].freq;
-    }
-    return m;
+// Liveline's lerp: `speed` is the share of the remaining distance covered per
+// 60fps frame, rescaled by `dt_s` so the curve is the same at any frame rate.
+inline float approach(float current, float target, float speed, float dt_s) {
+    const float factor = 1.f - std::pow(1.f - speed, dt_s * 60.f);
+    return current + (target - current) * factor;
 }
 
-// Vertices per cycle of that component needed to keep it from aliasing into a
+// What the line's clocks advance by for a frame `since_s` after the previous
+// one: real time up to Liveline's 50ms cap. Not the chart's shared dt, which
+// counts a frame over 0.1s as 1/60s and crawls on a busy host thread; the cap
+// keeps the hand-off a motion rather than a cut there.
+constexpr float kMaxFrameSeconds = 0.05f;
+inline float frame_seconds(float since_s) {
+    return since_s < 0.f ? 0.f
+                         : (since_s > kMaxFrameSeconds ? kMaxFrameSeconds
+                                                       : since_s);
+}
+
+// The line's entrance from nothing: Liveline's loading alpha, which snaps the
+// last percent rather than creeping toward 1 forever.
+constexpr float kFadeInSpeed = 0.14f;
+inline float fade_in_step(float alpha, float dt_s) {
+    const float a = approach(alpha, 1.f, kFadeInSpeed, dt_s);
+    return a > 0.99f ? 1.f : a;
+}
+
+// The hand-off's single clock, Liveline's chartReveal: 0 when the data lands,
+// 1 once the chart has taken over, about 0.94s later.
+constexpr float kRevealSpeed = 0.09f;
+constexpr float kRevealSnap = 0.005f;
+inline float reveal_step(float reveal, float dt_s) {
+    const float r = approach(reveal, 1.f, kRevealSpeed, dt_s);
+    return 1.f - r < kRevealSnap ? 1.f : r;
+}
+
+// Hermite ramp of `r` across [lo, hi].
+inline float ramp(float r, float lo, float hi) {
+    float t = (r - lo) / (hi - lo);
+    t = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+    return t * t * (3.f - 2.f * t);
+}
+
+// How far the vertex at `x_frac` has travelled from the wave to the data. The
+// centre resolves first and the edges last.
+inline float resolve(float reveal, float x_frac) {
+    const float edge = std::fabs(x_frac - 0.5f) * 2.f;
+    const float t = (reveal - edge * 0.4f) / 0.6f;
+    return t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+}
+
+// The line's share of the frame. In line mode it *is* the series and stays;
+// over candles it gives way fast so it never reads as a line chart.
+inline float presence(float reveal, float line_mode) {
+    const float out = (1.f - reveal) * (1.f - reveal) * (1.f - reveal);
+    return line_mode > out ? line_mode : out;
+}
+
+// The line's opacity through the hand-off: up from the breath to full.
+inline float reveal_alpha(float reveal, float breath_now) {
+    return breath_now + (1.f - breath_now) * reveal;
+}
+
+// How far the line has tinted from `skeleton` toward the series color.
+inline float tint(float reveal, float line_mode, float presence_now) {
+    if (presence_now <= 0.001f) return 0.f;
+    const float t = reveal * 3.f < 1.f ? reveal * 3.f : 1.f;
+    return t * line_mode / presence_now;
+}
+
+// The gridlines and axis labels through the hand-off.
+inline float axis_alpha(float reveal) { return ramp(reveal, 0.25f, 0.6f); }
+
+// The current-price indicator's opacity through the hand-off: Liveline's badge
+// as a line, its close-price line over candles.
+inline float price_alpha(float reveal, float line_mode) {
+    float badge = (reveal - 0.25f) / 0.25f;
+    badge = badge < 0.f ? 0.f : (badge > 1.f ? 1.f : badge);
+    return badge * line_mode + ramp(reveal, 0.4f, 0.8f) * (1.f - line_mode);
+}
+
+// How much of the way from the pane's centre to the price the indicator has
+// still to travel. Only a line slides in.
+inline float price_slide(float reveal, float line_mode) {
+    return (1.f - reveal) * line_mode;
+}
+
+// Liveline starts the live dot's pulse once the reveal passes this.
+constexpr float kPulseFrom = 0.6f;
+
+// Vertices per cycle of the sine needed to keep it from aliasing into a
 // shape the curve doesn't have. Ten is comfortably past the point where the
 // spline through the samples is indistinguishable from the real curve.
 constexpr float kSamplesPerCycle = 10.f;
 
 // How many vertices to sample the curve at across a plot `width_px` wide.
 //
-// The floor comes from the harmonic table rather than a literal, so retuning
-// the curve can't silently undersample it — a narrow chart still gets enough
-// vertices to resolve the finest component, it just spaces them more tightly.
+// The floor comes from kFreq rather than a literal, so retuning the curve can't
+// silently undersample it.
 //
 // Both the idle curve and the morph capture size themselves through here, so
 // the two are always sampled the same way and the hand-off has no shape
 // discontinuity to hide.
 inline int sample_count(float width_px) {
     const int floor_n =
-        static_cast<int>(max_freq() / kTwoPi * kSamplesPerCycle) + 1;
+        static_cast<int>(kFreq / kTwoPi * kSamplesPerCycle) + 1;
     const int n = static_cast<int>(width_px / 8.f);
     const int ceil_n = 4 * floor_n;
     return n < floor_n ? floor_n : (n > ceil_n ? ceil_n : n);

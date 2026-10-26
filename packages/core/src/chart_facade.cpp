@@ -319,7 +319,17 @@ extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     const float t = mode == 1 ? 1.f : 0.f;
     chart->morph_collapse = t;
     chart->morph_fade = t;
+    chart->price_indicator_morph.from_fade = chart->price_indicator_morph.to_fade;
     chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_begin_price_indicator_morph(VroomChart* chart,
+                                                        int32_t mode) {
+    if (!chart) return;
+    // Nothing visible changes until the theme does, so no mark_dirty.
+    chart->price_indicator_morph = vroom::price_indicator_style::begin(
+        chart->price_indicator_morph, chart->theme, chart->price_indicator_accent,
+        chart->morph_fade, mode == 1 ? 1.f : 0.f);
 }
 
 extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,
@@ -491,6 +501,10 @@ static void capture_morph(VroomChart* chart) {
 
 extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
     if (!chart) return;
+    // A timeframe switch replaces the data the loading line was resolving
+    // onto, so the hand-off is over.
+    chart->loading_line_revealing = false;
+    chart->loading_line.clear();
     capture_morph(chart);
     if (chart->morph_from.empty()) return;
 
@@ -533,6 +547,7 @@ extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
 
     chart->morph_is_stream = true;
     chart->interval_morph_t = 0.f;
+    chart->loading_reveal_drives_morph = false;
 }
 
 extern "C" void vroom_chart_set_loading(VroomChart* chart, int32_t on,
@@ -560,6 +575,7 @@ extern "C" void vroom_chart_begin_loading_reveal(VroomChart* chart) {
 extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (!chart) return;
     chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
+    chart->loading_reveal_drives_morph = false;
     if (chart->interval_morph_t >= 1.f) {
         chart->morph_from.clear();
         chart->morph_from.shrink_to_fit();
@@ -567,11 +583,6 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
         chart->morph_lines.shrink_to_fit();
         chart->interval_morph_fade = false;
         chart->morph_is_stream = false;
-        // The loading line rides this same clock out (see draw_chart 5.9), so
-        // it has to be released here too or it would hang over a settled chart.
-        chart->loading_line_revealing = false;
-        chart->loading_line.clear();
-        chart->loading_line.shrink_to_fit();
     }
     chart->mark_dirty();
 }
@@ -1233,6 +1244,7 @@ extern "C" void vroom_chart_set_price_lines(VroomChart* chart,
         if (src.text) pl.text = src.text;
         if (src.quantity) pl.quantity = src.quantity;
         pl.flags = src.flags;
+        pl.badge_text = src.badge_text;
         chart->price_lines.push_back(std::move(pl));
     }
     if (style) chart->price_line_style = *style;

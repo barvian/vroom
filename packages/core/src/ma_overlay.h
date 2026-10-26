@@ -10,6 +10,8 @@
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
+class SkPath;
+struct SkPoint;
 
 namespace vroom {
 struct CandleSnapshot;
@@ -70,6 +72,9 @@ void draw(SkCanvas* canvas,
 //
 // Separate from draw() because the capture holds candle closes — it can't stand
 // in for an indicator's values.
+// `tip_hole_r` leaves a disc that size unstroked at the line's end, for a tip
+// dot that will cover it at the same alpha: stacked, the two would show the
+// line's end through the dot.
 void draw_close_line(SkCanvas* canvas,
                      const Layout& lay,
                      const PriceBounds& bounds,
@@ -86,7 +91,8 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from = nullptr,
                      std::size_t from_n = 0,
                      float morph_t = 1.f,
-                     float tension = 0.f);
+                     float tension = 0.f,
+                     float tip_hole_r = 0.f);
 
 // The area beneath the close-price polyline, filled with `color` ramping from
 // `gradient_opacity` at the line's peak to fully transparent at the pane bottom.
@@ -160,6 +166,30 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from = nullptr,
                     std::size_t from_n = 0,
                     float morph_t = 1.f);
+
+// draw_close_tip's marker at an already-resolved `tip`, for a line whose end
+// isn't a candle's close (the loading reveal's). Same on-pane test, clip and
+// paint, so the two are indistinguishable where they meet.
+void draw_tip_marker(SkCanvas* canvas,
+                     const SkPoint& tip,
+                     float candle_right,
+                     float clip_right,
+                     float candle_area_h,
+                     uint32_t line_color,
+                     float line_width,
+                     float dot_radius,
+                     float opacity,
+                     bool pulse,
+                     float pulse_phase,
+                     float pulse_opacity);
+
+// draw_close_gradient's fill under an already-built `line`, at `alpha`.
+void fill_under(SkCanvas* canvas,
+                const SkPath& line,
+                float candle_right,
+                float candle_area_h,
+                uint32_t color,
+                float alpha);
 
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.

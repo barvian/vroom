@@ -4,4 +4,4 @@
 '@vroomchart/react': patch
 ---
 
-Candles in the loading reveal now grow out of the loading line and stay on it until they land.
+Candles in the loading reveal now grow out of the loading line and stay on it until they land. The candle↔line switch grows them out of the line the same way.

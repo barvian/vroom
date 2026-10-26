@@ -751,8 +751,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 4.35. Price-series morph state, shared by the gradient fill below and the
     //       series itself (5). `morph_fade` crossfades candles→line and
-    //       `morph_collapse` folds each candle toward its close (the line vertex);
-    //       fade 0 = pure candles, fade 1 = pure line.
+    //       `morph_collapse` folds them into the line, the loading reveal run
+    //       backwards; fade 0 = pure candles, fade 1 = pure line.
     //
     //       An interval *transform* reshapes each slot from the geometry it held
     //       before the timeframe switch (see `morph_from`). A host-chosen
@@ -828,7 +828,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade < 1.f) {
                 vroom::candles::draw(canvas, visible, 0, lay, theme, bounds,
                                      window_ms, visible_start_ms,
-                                     candle_duration_ms, collapse,
+                                     candle_duration_ms,
                                      (1.f - fade) * layer, morph_from.data(),
                                      morph_n, 0.f);
             }
@@ -873,6 +873,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         // Through a loading reveal the loading line stands in for the close
         // line, its tip and the wash under it (see loading_line::draw_reveal).
         const float series_line = loading_line_revealing ? 0.f : 1.f;
+        // Mid-switch the bars grow out of the line, or fold back into it, on
+        // the loading reveal's slots: centre first, each about the line.
+        const auto grow = collapse > 0.f && fade < 1.f && !reshape &&
+                                  !loading_line_revealing
+                              ? reveal_slots(1.f - collapse, 1.f)
+                              : std::vector<vroom::CandleSnapshot>{};
 
         if (draw_new) {
             // 4.4. Line-mode gradient fill — the wash under the close polyline.
@@ -928,10 +934,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
             // 5. Price series — candles, a close-price line, or a blend.
             if (fade < 1.f) {
-                vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
-                                     window_ms, visible_start_ms,
-                                     candle_duration_ms, collapse, 1.f - fade,
-                                     morph_src, morph_n_draw, morph_t);
+                vroom::candles::draw(
+                    canvas, visible, n, lay, theme, bounds, window_ms,
+                    visible_start_ms, candle_duration_ms, 1.f - fade,
+                    grow.empty() ? morph_src : grow.data(),
+                    grow.empty() ? morph_n_draw : grow.size(),
+                    grow.empty() ? morph_t : 0.f);
             }
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
@@ -1209,7 +1217,9 @@ void VroomChart::begin_frame() {
             // re-aimed every frame at the line as it is drawn this frame.
             interval_morph_t =
                 vroom::loading_wave::ramp(loading_reveal, 0.f, 1.f);
-            if (loading_reveal < 1.f) aim_reveal_slots();
+            if (loading_reveal < 1.f) {
+                morph_from = reveal_slots(loading_reveal, loading_line_t);
+            }
         }
         if (loading_reveal >= 1.f) {
             if (loading_reveal_drives_morph) {
@@ -1339,20 +1349,21 @@ void VroomChart::begin_loading_morph() {
     mark_dirty();
 }
 
-void VroomChart::aim_reveal_slots() {
-    morph_from.clear();
+std::vector<vroom::CandleSnapshot> VroomChart::reveal_slots(float reveal,
+                                                            float line_t) const {
+    std::vector<vroom::CandleSnapshot> slots;
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
     const float pane_h = vroom::price_pane_bottom(lay);
     const auto target = loading_target();
-    if (target.n == 0 || area_w <= 0.f || pane_h <= 0.f) return;
+    if (target.n == 0 || area_w <= 0.f || pane_h <= 0.f) return slots;
 
     const int64_t window_ms = visible_end_ms - visible_start_ms;
     const float elapsed = loading_animate ? loading_elapsed_s : 0.f;
 
     // Right-to-left, matching how the morph machinery indexes slots (slot 0 =
     // newest bar at the right edge).
-    morph_from.reserve(target.n);
+    slots.reserve(target.n);
     for (std::size_t slot = 0; slot < target.n; ++slot) {
         const ::VroomCandle& c = target.visible[target.n - 1 - slot];
 
@@ -1362,7 +1373,7 @@ void VroomChart::aim_reveal_slots() {
         // The line's own progress and source at this bar's vertex, so the bar
         // can't drift off the line as the wave travels or as the centre
         // resolves ahead of the edges.
-        s.t = vroom::loading_wave::resolve(loading_reveal, s.x);
+        s.t = vroom::loading_wave::resolve(reveal, s.x);
         const auto y_of = [&](double price) {
             return vroom::y_at_fraction(
                 lay, static_cast<float>(vroom::price_fraction(target.bounds, price)));
@@ -1371,7 +1382,7 @@ void VroomChart::aim_reveal_slots() {
         const float source_y =
             pane_h * vroom::loading_wave::reveal_source_y_frac(
                          elapsed, loading_frozen_s, s.x, close_y / pane_h,
-                         loading_line_t);
+                         line_t);
         const float mid_y = 0.5f * (close_y + y_of(c.open));
         const float origin = static_cast<float>(vroom::fraction_at_y(
             lay, vroom::loading_wave::reveal_bar_origin(source_y, close_y,
@@ -1383,8 +1394,9 @@ void VroomChart::aim_reveal_slots() {
         // just smear the line thicker on the first frames.
         s.skeleton = true;
         s.skeleton_alpha = 0.f;
-        morph_from.push_back(s);
+        slots.push_back(s);
     }
+    return slots;
 }
 
 void VroomChart::begin_loading_reveal() {
@@ -1393,7 +1405,7 @@ void VroomChart::begin_loading_reveal() {
 
     const auto target = loading_target();
     loading_reveal = 0.f;
-    aim_reveal_slots();
+    morph_from = reveal_slots(loading_reveal, loading_line_t);
     if (morph_from.empty()) {
         loading_line.clear();
         mark_dirty();

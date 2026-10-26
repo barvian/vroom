@@ -23,10 +23,7 @@ namespace vroom::candles {
 // Draws every candle in [visible, visible + n). The visible slice should
 // already be filtered by `visible_indices` in viewport.h.
 //
-// `collapse` (0..1) morphs each candle vertically toward its close price for the
-// candle→line transition: 0 = normal candle, 1 = a flat point at the close (the
-// body/wick heights and width shrink to the line). `opacity` (0..1) fades the
-// whole candle layer out as the line fades in. Both default to a no-op.
+// `opacity` (0..1) fades the whole candle layer out as the line fades in.
 //
 // `from` / `from_n` is the outgoing geometry of an interval *transform*, indexed
 // from the right of the visible slice (slot 0 = newest), and `morph_t` (0..1)
@@ -44,7 +41,6 @@ void draw(SkCanvas* canvas,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms,
-          float collapse = 0.f,
           float opacity = 1.f,
           const CandleSnapshot* from = nullptr,
           std::size_t from_n = 0,

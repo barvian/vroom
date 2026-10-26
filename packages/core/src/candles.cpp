@@ -45,14 +45,12 @@ void draw(SkCanvas* canvas,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms,
-          float collapse,
           float opacity,
           const CandleSnapshot* from,
           std::size_t from_n,
           float morph_t) {
     if (!canvas) return;
 
-    collapse = std::clamp(collapse, 0.f, 1.f);
     opacity = std::clamp(opacity, 0.f, 1.f);
     morph_t = std::clamp(morph_t, 0.f, 1.f);
     if (opacity <= 0.f) return;
@@ -71,11 +69,8 @@ void draw(SkCanvas* canvas,
                                static_cast<U8CPU>(opacity * 255.f + 0.5f));
     }
 
-    const float full_body_w = vroom::candle_body_width(
+    const float body_w = vroom::candle_body_width(
         lay, window_ms, candle_duration_ms);
-    // Thin the body toward the line stroke width as candles collapse to the line.
-    const float line_w = theme.floats[VROOM_FLOAT_LINE_WIDTH_PX];
-    const float body_w = full_body_w + (line_w - full_body_w) * collapse;
 
     const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
     const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
@@ -186,13 +181,6 @@ void draw(SkCanvas* canvas,
         }
         if (alpha <= 0.f) continue;
 
-        // Collapse high/low/open toward the close so the candle folds into its
-        // close point (the line vertex) as `collapse` → 1.
-        const float y_close = g.close;
-        const float y_high = g.high * (1.f - collapse) + y_close * collapse;
-        const float y_low = g.low * (1.f - collapse) + y_close * collapse;
-        const float y_open = g.open * (1.f - collapse) + y_close * collapse;
-
         // Fast path: the prebuilt bull/bear paints. A faded slot and a candle
         // that changes direction mid-morph both need per-slot colors.
         const SkPaint* wick_p = bull ? &wick_bull : &wick_bear;
@@ -230,10 +218,10 @@ void draw(SkCanvas* canvas,
             if (flip) draw_border = draw_border_bull || draw_border_bear;
         }
 
-        canvas->drawLine(g.x, y_high, g.x, y_low, *wick_p);
+        canvas->drawLine(g.x, g.high, g.x, g.low, *wick_p);
 
-        const float y_top = std::min(y_open, y_close);
-        const float y_bot = std::max(y_open, y_close);
+        const float y_top = std::min(g.open, g.close);
+        const float y_bot = std::max(g.open, g.close);
         const float h = std::max(1.f, y_bot - y_top);
         const SkRect body = SkRect::MakeXYWH(g.x - half_body, y_top, body_w, h);
         // Corner radius clamped so thin candles / short bodies don't over-round.

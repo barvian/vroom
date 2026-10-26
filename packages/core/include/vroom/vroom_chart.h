@@ -608,9 +608,9 @@ void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 
 // Candle↔line morph blend for animated transitions. `collapse` folds candles
-// toward their close price; `fade` crossfades candles→line. Both 0 = candles,
-// both 1 = line. Driven per-frame by the host animation loop; set_chart_type
-// snaps both to the target.
+// into the line, the loading reveal run backwards; `fade` crossfades
+// candles→line. Both 0 = candles, both 1 = line. Driven per-frame by the host
+// animation loop; set_chart_type snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
 
 // Blends the current-price line's style (the PRICE_INDICATOR_* keys) and the

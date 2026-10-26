@@ -95,8 +95,9 @@ struct VroomChart {
     int chart_type = 0;
 
     // Candle↔line morph blend, driven per-frame by the JS animation loop.
-    // `morph_collapse` folds candles toward their close; `morph_fade` crossfades
-    // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
+    // `morph_collapse` folds candles into the line, the loading reveal run
+    // backwards; `morph_fade` crossfades candles→line. Both 0 = candles, both
+    // 1 = line. set_chart_type snaps them.
     float morph_collapse = 0.f;
     float morph_fade = 0.f;
     // The current-price line's style blend, riding `morph_fade`. Settled unless
@@ -684,7 +685,7 @@ struct VroomChart {
     std::vector<vroom::LinePoint> aim_loading_line(float elapsed) const;
 
     // Stage 3. Hands the candles to the interval-morph machinery, each
-    // collapsed onto the line at zero alpha (see aim_reveal_slots), so the
+    // collapsed onto the line at zero alpha (see reveal_slots), so the
     // slot lerp grows each bar out of the line while candles::draw blends its
     // colour up out of nothing. Also releases `loading`, letting the axes,
     // price badge and panes come back. Runs on its own clock (see
@@ -692,10 +693,13 @@ struct VroomChart {
     // stage 2.
     void begin_loading_reveal();
 
-    // Re-captures the reveal's bars against the line as it stands this frame:
-    // each slot on the line's own progress at its x, collapsed to the point
-    // that keeps it growing about the line (see loading_wave::reveal_bar_origin).
-    void aim_reveal_slots();
+    // The reveal's bars against the line as it stands at `reveal`: each slot on
+    // the line's own progress at its x, collapsed to the point that keeps it
+    // growing about the line (see loading_wave::reveal_bar_origin). `line_t` is
+    // the loading line's stage 2; at 1 the line is the close line, which is how
+    // the candle↔line switch grows its bars out of it.
+    std::vector<vroom::CandleSnapshot> reveal_slots(float reveal,
+                                                    float line_t) const;
 
     // True when the line tip's pulse ring is on screen and looping. Gated on
     // line mode and on having data, so a chart that isn't showing the ring can

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "curve.h"
@@ -429,7 +430,7 @@ void fill_under(SkCanvas* canvas,
     canvas->restore();
 }
 
-void draw_close_tip(SkCanvas* canvas,
+float draw_close_tip(SkCanvas* canvas,
                     const Layout& lay,
                     const PriceBounds& bounds,
                     const ::VroomCandle* visible,
@@ -450,22 +451,23 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from,
                     std::size_t from_n,
                     float morph_t) {
-    if (!canvas || opacity <= 0.f) return;
+    constexpr float kNone = std::numeric_limits<float>::infinity();
+    if (!canvas || opacity <= 0.f) return kNone;
     morph_t = std::clamp(morph_t, 0.f, 1.f);
 
     const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
     const std::size_t slots = std::max(n, from_count);
-    if (slots == 0) return;
+    if (slots == 0) return kNone;
 
     const SkPoint tip =
         close_vertex(lay, bounds, visible, n, window_ms, visible_start_ms,
                      candle_duration_ms, from, from_count, morph_t, 0);
-    draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
+    return draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
                     line_color, line_width, dot_radius, opacity, pulse,
                     pulse_phase, pulse_opacity);
 }
 
-void draw_tip_marker(SkCanvas* canvas,
+float draw_tip_marker(SkCanvas* canvas,
                      const SkPoint& tip,
                      float candle_right,
                      float clip_right,
@@ -477,9 +479,10 @@ void draw_tip_marker(SkCanvas* canvas,
                      bool pulse,
                      float pulse_phase,
                      float pulse_opacity) {
-    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    constexpr float kNone = std::numeric_limits<float>::infinity();
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return kNone;
     opacity = std::clamp(opacity, 0.f, 1.f);
-    if (opacity <= 0.f) return;
+    if (opacity <= 0.f) return kNone;
     const float dot_r = vroom::tip_geometry::of(line_width, dot_radius).dot_r;
     const vroom::tip_pulse::Frame f =
         pulse ? vroom::tip_pulse::at(pulse_phase, pulse_opacity)
@@ -501,7 +504,7 @@ void draw_tip_marker(SkCanvas* canvas,
     // left inside the clip, so it slides out with the line.
     if (!clip.intersects(SkRect::MakeLTRB(tip.fX - reach, tip.fY - reach,
                                           tip.fX + reach, tip.fY + reach))) {
-        return;
+        return kNone;
     }
 
     canvas->save();
@@ -529,6 +532,7 @@ void draw_tip_marker(SkCanvas* canvas,
 
     if (opacity < 1.f) canvas->restore();
     canvas->restore();
+    return tip.fX - dot_r;
 }
 
 void fill_between(SkCanvas* canvas,

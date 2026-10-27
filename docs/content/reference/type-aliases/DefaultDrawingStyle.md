@@ -8,7 +8,7 @@ type DefaultDrawingStyle = {
 };
 ```
 
-Source: [types/src/index.ts:454](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L454)
+Source: [types/src/index.ts:459](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L459)
 
 Default appearance for drawings the user creates — the live draft and the
 object handed to `onDrawingComplete`. Paste copies the source drawing's
@@ -29,7 +29,7 @@ and CSS swatches preview it correctly. 8-digit hex is `#aarrggbb`, not CSS
 optional color?: VroomColor;
 ```
 
-Source: [types/src/index.ts:456](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L456)
+Source: [types/src/index.ts:461](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L461)
 
 Stroke color, used for the live draft and stamped onto the committed drawing.
 
@@ -41,7 +41,7 @@ Stroke color, used for the live draft and stamped onto the committed drawing.
 optional fill?: VroomColor;
 ```
 
-Source: [types/src/index.ts:463](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L463)
+Source: [types/src/index.ts:468](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L468)
 
 Box interior fill. Omitted, new boxes keep the default 10% stroke tint.
 Ignored by line, pencil, and path.
@@ -54,6 +54,6 @@ Ignored by line, pencil, and path.
 optional width?: number;
 ```
 
-Source: [types/src/index.ts:458](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L458)
+Source: [types/src/index.ts:463](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L463)
 
 Stroke width in px. Default 2.

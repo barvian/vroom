@@ -21,9 +21,10 @@
 
 namespace vroom::tip_geometry {
 
-// Gap left between the dot's outer edge and the y-axis strip. The dot touching
-// the price labels reads as a rendering fault even when nothing is clipped.
-constexpr float kClearPx = 4.f;
+// Gap left between the dot's outer edge and the y-axis strip, or the view's edge
+// when the axis is hidden. The dot touching the price labels reads as a
+// rendering fault even when nothing is clipped, and hugging the edge as cramped.
+constexpr float kClearPx = 18.f;
 
 struct Geometry {
     float dot_r;  // the filled dot in the line's color

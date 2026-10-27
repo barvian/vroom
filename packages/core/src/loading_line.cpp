@@ -111,14 +111,15 @@ float phase(const VroomChart& chart) {
     return chart.loading_animate ? chart.loading_elapsed_s : 0.f;
 }
 
-// Stage 1: the curve alone, sampled across the whole plot.
+// Stage 1: the curve alone, sampled across the plot.
 SkPath idle_path(const VroomChart& chart, float area_w, float pane_h) {
     const int samples = loading_wave::sample_count(area_w);
     const float elapsed = phase(chart);
+    const float end = chart.loading_line_end();
     std::vector<SkPoint> pts;
     pts.reserve(static_cast<std::size_t>(samples) + 1);
     for (int i = 0; i <= samples; ++i) {
-        const float xf = static_cast<float>(i) / static_cast<float>(samples);
+        const float xf = end * static_cast<float>(i) / static_cast<float>(samples);
         pts.push_back(SkPoint{xf * area_w,
                               loading_wave::y_frac(elapsed, xf) * pane_h});
     }

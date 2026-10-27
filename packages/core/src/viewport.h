@@ -227,6 +227,21 @@ float candle_body_width(const Layout& layout,
                         int64_t window_ms,
                         int64_t candle_duration_ms);
 
+// The wick of a candle whose body is see-through, as the runs above and below
+// the body (y grows down), so it can't show through the body and the candle
+// fades as one shape. `cap` is how far the stroke's cap reaches past an end.
+// A run that wouldn't clear the body comes back empty (top >= bottom).
+struct WickRuns {
+    float above_top, above_bottom;
+    float below_top, below_bottom;
+};
+inline WickRuns wick_runs_outside_body(float high, float low, float body_top,
+                                       float body_bottom, float cap) {
+    const float above_bottom = body_top - cap < low ? body_top - cap : low;
+    const float below_top = body_bottom + cap > high ? body_bottom + cap : high;
+    return {high, above_bottom, below_top, low};
+}
+
 // Inverse of candle_body_width: the time window that makes each candle body
 // `body_px` wide. Returns 0 if any input is degenerate. Does not consult the
 // data span — a short series leaves empty space on the left (width wins).

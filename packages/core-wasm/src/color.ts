@@ -27,6 +27,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
 export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   axisFontSize: FloatKey.AxisFontSize,
   badgeFontSize: FloatKey.BadgeFontSize,
+  simpleCrosshairBadgeFontSize: FloatKey.SimpleCrosshairBadgeFontSize,
   wickWidth: FloatKey.WickWidth,
   candleRadius: FloatKey.CandleRadius,
   volumeRadius: FloatKey.VolumeRadius,

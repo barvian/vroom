@@ -127,6 +127,11 @@ export type VroomTheme = {
    */
   badgeFontSize?: number;
   /**
+   * Text size on the simple crosshair's capsule time badge, in CSS px; the
+   * capsule scales with it. Omit for 15, or pass 0 to follow `badgeFontSize`.
+   */
+  simpleCrosshairBadgeFontSize?: number;
+  /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes

@@ -11,7 +11,7 @@ type VolumeConfig = {
 };
 ```
 
-Source: [types/src/index.ts:891](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L891)
+Source: [types/src/index.ts:896](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L896)
 
 Volume bar config. One bottom-anchored bar per candle on the price pane,
 drawn under the candles and sharing their x position and body width.
@@ -27,7 +27,7 @@ this prop leaves the chart looking as it always has.
 optional downColor?: string | number;
 ```
 
-Source: [types/src/index.ts:911](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L911)
+Source: [types/src/index.ts:916](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L916)
 
 Down-bar color (hex string or packed ARGB number). Defaults to `theme.accentBear`.
 
@@ -39,7 +39,7 @@ Down-bar color (hex string or packed ARGB number). Defaults to `theme.accentBear
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:893](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L893)
+Source: [types/src/index.ts:898](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L898)
 
 Draw the bars. Default true.
 
@@ -51,7 +51,7 @@ Draw the bars. Default true.
 optional height?: number;
 ```
 
-Source: [types/src/index.ts:905](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L905)
+Source: [types/src/index.ts:910](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L910)
 
 Height of the tallest bar as a fraction of the price pane, 0..1.
 Default 0.2.
@@ -69,7 +69,7 @@ in view, so the tallest bar sits exactly at the ceiling.
 optional opacity?: number;
 ```
 
-Source: [types/src/index.ts:895](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L895)
+Source: [types/src/index.ts:900](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L900)
 
 Bar opacity 0..1 (1 = opaque). Default 0.5, so bars read quieter than the candles.
 
@@ -81,7 +81,7 @@ Bar opacity 0..1 (1 = opaque). Default 0.5, so bars read quieter than the candle
 optional radius?: number;
 ```
 
-Source: [types/src/index.ts:907](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L907)
+Source: [types/src/index.ts:912](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L912)
 
 Corner radius (px) of the _top_ of each bar. Defaults to `theme.volumeRadius`, else 0 (square).
 
@@ -93,6 +93,6 @@ Corner radius (px) of the _top_ of each bar. Defaults to `theme.volumeRadius`, e
 optional upColor?: string | number;
 ```
 
-Source: [types/src/index.ts:909](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L909)
+Source: [types/src/index.ts:914](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L914)
 
 Up-bar color (hex string or packed ARGB number). Defaults to `theme.accentBull`.

@@ -13,6 +13,7 @@
 #include "include/effects/SkDashPathEffect.h"
 #pragma clang diagnostic pop
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -42,7 +43,8 @@ uint32_t draw(SkCanvas* canvas,
               float candle_right,
               float candle_area_h,
               const vroom::CandleSnapshot* morph_from,
-              float morph_t) {
+              float morph_t,
+              float tip_left) {
     if (!canvas || chart.candles.empty())
         return chart.theme.colors[VROOM_COLOR_ACCENT_BULL];
 
@@ -94,9 +96,15 @@ uint32_t draw(SkCanvas* canvas,
     }
 
     // Meet the badge when it will draw. Otherwise stop at the plot edge.
-    const float line_right = join_badge
+    const float plot_end = join_badge
         ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
         : candle_right;
+    // Settled line mode ends on the tip dot. Across a candles<->line switch the
+    // end slides with the dot's fade, through the dot, so it never gaps or snaps.
+    const float line_right =
+        std::isfinite(tip_left)
+            ? plot_end + (tip_left - plot_end) * std::clamp(chart.morph_fade, 0.f, 1.f)
+            : plot_end;
     const auto style = vroom::price_indicator_style::current(
         chart.price_indicator_morph, chart.theme, chart.morph_fade);
     const auto iv = vroom::price_indicator_dash::intervals(

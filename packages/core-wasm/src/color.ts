@@ -40,6 +40,8 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   priceIndicatorDashGap: FloatKey.PriceIndicatorGap,
   priceIndicatorLineWidth: FloatKey.PriceIndicatorWidth,
   priceIndicatorLineOpacity: FloatKey.PriceIndicatorOpacity,
+  priceDecimals: FloatKey.PriceDecimals,
+  minPriceRangeRatio: FloatKey.MinPriceRangeRatio,
 };
 
 // Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).

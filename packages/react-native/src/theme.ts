@@ -41,6 +41,8 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   priceIndicatorDashGap: 20, // VROOM_FLOAT_PRICE_INDICATOR_GAP_PX
   priceIndicatorLineWidth: 21, // VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX
   priceIndicatorLineOpacity: 22, // VROOM_FLOAT_PRICE_INDICATOR_OPACITY
+  priceDecimals: 26, // VROOM_FLOAT_PRICE_DECIMALS
+  minPriceRangeRatio: 27, // VROOM_FLOAT_MIN_PRICE_RANGE_RATIO
 };
 
 // Named because useChartCore clears it directly under reduced motion, outside

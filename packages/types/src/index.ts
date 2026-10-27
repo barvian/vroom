@@ -265,6 +265,10 @@ export type VroomTheme = {
    * grows into it, and the time labels and crosshair time badge fade first.
    */
   showXAxis?: boolean;
+  /** Fixed decimals for every price label and badge (0–12); omit for automatic. */
+  priceDecimals?: number;
+  /** Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for none. */
+  minPriceRangeRatio?: number;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */

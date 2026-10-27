@@ -25,6 +25,8 @@ type VroomTheme = {
   lineTipPulse?: boolean;
   lineTipPulseOpacity?: number;
   lineWidth?: number;
+  minPriceRangeRatio?: number;
+  priceDecimals?: number;
   priceIndicatorBadgeText?: VroomColor;
   priceIndicatorDashGap?: number;
   priceIndicatorDashLength?: number;
@@ -356,6 +358,30 @@ optional lineWidth?: number;
 Source: [types/src/index.ts:165](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L165)
 
 Line-chart-mode polyline stroke width in px, also the loading line's. Defaults to 1.5.
+
+---
+
+### minPriceRangeRatio?
+
+```ts
+optional minPriceRangeRatio?: number;
+```
+
+Source: [types/src/index.ts:271](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L271)
+
+Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for none.
+
+---
+
+### priceDecimals?
+
+```ts
+optional priceDecimals?: number;
+```
+
+Source: [types/src/index.ts:269](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L269)
+
+Fixed decimals for every price label and badge (0–12); omit for automatic.
 
 ---
 

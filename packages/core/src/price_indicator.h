@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 
 #include "color_lerp.h"
 #include "theme.h"
@@ -23,7 +24,10 @@ struct PriceBounds;
 namespace vroom::price_indicator {
 
 // Draws the line at the latest close's y, from the left edge to the price
-// badge when that badge is drawn, otherwise to `candle_right`. `candle_area_h`
+// badge when that badge is drawn, otherwise to `candle_right`. When the line
+// chart's tip dot draws, it sits on that close, so settled line mode ends on
+// `tip_left`, the dot's left edge, instead; a candles<->line switch slides
+// between the two. `candle_area_h`
 // is the y of the x-axis separator; the indicator is skipped if the close maps
 // outside [0, candle_area_h].
 //
@@ -45,7 +49,8 @@ uint32_t draw(SkCanvas* canvas,
               float candle_right,
               float candle_area_h,
               const CandleSnapshot* morph_from = nullptr,
-              float morph_t = 1.f);
+              float morph_t = 1.f,
+              float tip_left = std::numeric_limits<float>::infinity());
 
 }  // namespace vroom::price_indicator
 

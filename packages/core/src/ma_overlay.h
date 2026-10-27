@@ -140,11 +140,11 @@ void draw_close_gradient(SkCanvas* canvas,
 // divided by tip_pulse::kPeriodSeconds. `pulse_opacity` is the ring's alpha as
 // it leaves the dot. Both are ignored unless `pulse`.
 //
-// `candle_right` bounds where the marked candle may be for the marker to draw at
-// all; `clip_right` bounds the paint, and is wider — the dot overhangs the plot
-// when the newest candle is at the right edge, so it paints into the gutter the
-// layout reserves for it. Callers must therefore draw the tip *after* the axis
-// backgrounds, which mask that gutter.
+// The marker paints within `candle_right` or `clip_right`, whichever is wider,
+// and draws while any of it, pulse ring included, is still inside — the dot
+// overhangs the plot when the newest candle is at the right edge, so it paints
+// into the gutter the layout reserves for it. Callers must therefore draw the
+// tip *after* the axis backgrounds, which mask that gutter.
 //
 // Returns the dot's left edge, or infinity when no marker drew.
 float draw_close_tip(SkCanvas* canvas,
@@ -170,7 +170,7 @@ float draw_close_tip(SkCanvas* canvas,
                     float morph_t = 1.f);
 
 // draw_close_tip's marker at an already-resolved `tip`, for a line whose end
-// isn't a candle's close (the loading reveal's). Same on-pane test, clip and
+// isn't a candle's close (the loading reveal's). Same cull, clip and
 // paint, so the two are indistinguishable where they meet.
 float draw_tip_marker(SkCanvas* canvas,
                      const SkPoint& tip,

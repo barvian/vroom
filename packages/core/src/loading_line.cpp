@@ -244,7 +244,7 @@ float draw_reveal(SkCanvas* canvas,
     if (alpha < 1.f) canvas->saveLayerAlphaf(nullptr, alpha);
     // Exactly what the axis backgrounds leave uncovered, so the line looks as
     // it did drawn beneath them.
-    const float candle_right = candle_area_width(lay);
+    const float candle_right = plot_right(lay);
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, x_axis_top(lay)));
     stroke_path(canvas, chart, spline(pts, frame.tension), color, 1.f);
@@ -276,7 +276,7 @@ void draw_reveal_fill(SkCanvas* canvas,
         frame.line_mode * chart.loading_reveal;
     if (alpha <= 0.f) return;
     ma_overlay::fill_under(canvas, spline(frame.pts, frame.tension),
-                           candle_area_width(lay), price_pane_bottom(lay),
+                           plot_right(lay), price_pane_bottom(lay),
                            chart.theme.colors[VROOM_COLOR_LINE], alpha);
 }
 

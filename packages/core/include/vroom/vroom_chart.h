@@ -544,6 +544,7 @@ typedef enum {
     VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px
     VROOM_FLOAT_PRICE_INDICATOR_OPACITY,    // 0..1, multiplies the accent's alpha
     VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP,  // 0/1: round the dash ends
+    VROOM_FLOAT_Y_AXIS_FADE,  // 0/1: fade the series out under the y-axis strip
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 

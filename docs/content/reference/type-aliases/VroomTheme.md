@@ -39,6 +39,7 @@ type VroomTheme = {
   wickBull?: VroomColor;
   wickRoundCap?: boolean;
   wickWidth?: number;
+  yAxisFade?: boolean;
 };
 ```
 
@@ -447,7 +448,7 @@ Round the ends of the current-price indicator's dashes. Defaults to `false`.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:256](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L256)
+Source: [types/src/index.ts:262](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L262)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -560,3 +561,17 @@ optional wickWidth?: number;
 Source: [types/src/index.ts:99](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L99)
 
 Wick stroke width in px (applies to both up and down wicks). Defaults to 1.
+
+---
+
+### yAxisFade?
+
+```ts
+optional yAxisFade?: boolean;
+```
+
+Source: [types/src/index.ts:255](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L255)
+
+Run the price series on under the y-axis strip, fading it out to the right
+edge, instead of stopping it at the strip. Defaults to `false`. The labels
+and badges stay drawn over it, and it goes with the strip as it hides.

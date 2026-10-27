@@ -56,6 +56,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     1.f,    // PRICE_INDICATOR_WIDTH_PX
     1.f,    // PRICE_INDICATOR_OPACITY — the accent's own alpha
     0.f,    // PRICE_INDICATOR_ROUND_CAP — butt caps by default
+    0.f,    // Y_AXIS_FADE — the series stops at the y-axis strip by default
 };
 
 }  // namespace

@@ -111,7 +111,10 @@ describe('applyTheme', () => {
     const fontData = new ArrayBuffer(8);
     const badgeFontData = new ArrayBuffer(8);
     applyTheme(handle, { fontData, badgeFontData });
+    applyTheme(handle, { fontData, badgeFontData });
+    expect(setFont).toHaveBeenCalledOnce();
     expect(setFont).toHaveBeenCalledWith(fontData);
+    expect(setBadgeFont).toHaveBeenCalledOnce();
     expect(setBadgeFont).toHaveBeenCalledWith(badgeFontData);
   });
 

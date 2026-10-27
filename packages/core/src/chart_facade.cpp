@@ -481,6 +481,7 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode
 
 extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
     if (!chart) return;
+    if (chart->loading_line_revealing && chart->loading_reveal_drives_morph) return;
 
     // Ticks arrive faster than the morph lands, so nearly every one interrupts
     // the last. Keep what was on screen and fold it into the fresh capture
@@ -538,6 +539,9 @@ extern "C" void vroom_chart_begin_loading_reveal(VroomChart* chart) {
 
 extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (!chart) return;
+    if (chart->loading_line_revealing && chart->loading_reveal_drives_morph) return;
+    // With nothing captured, reopening the morph would read as a timeframe switch.
+    if (t < 1.f && chart->morph_from.empty()) return;
     chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
     chart->loading_reveal_drives_morph = false;
     if (chart->interval_morph_t >= 1.f) {

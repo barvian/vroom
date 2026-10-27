@@ -708,8 +708,9 @@ export interface VroomChartHandle {
    * candles the line gives way to them; in line mode it becomes the series
    * line.
    *
-   * Keep rendering while {@link isAnimating} is true. Driving
-   * {@link setIntervalMorph} yourself takes the bars off the reveal's clock.
+   * Keep rendering while {@link isAnimating} is true. The reveal owns the
+   * bars until it lands: {@link beginStreamMorph} and {@link setIntervalMorph}
+   * are ignored meanwhile, and live updates fold into the growing bars.
    */
   beginLoadingReveal(): void;
 

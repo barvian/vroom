@@ -108,6 +108,50 @@ TEST_CASE("the line resolves from the centre outward") {
     CHECK(resolve(0.6f, 0.5f) == doctest::Approx(1.f));
 }
 
+// The bars grow out of wherever the line is this frame.
+TEST_CASE("the reveal's line comes from the sine, or wherever a stage 2 left it") {
+    const float elapsed = 3.f;
+    const float frozen = 1.f;
+    const float close = 0.2f;
+    // No stage 2: the sine as it is now.
+    CHECK(reveal_source_y_frac(elapsed, frozen, 0.25f, close, 0.f) ==
+          doctest::Approx(y_frac(elapsed, 0.25f)));
+    // A finished stage 2 already sits on the close.
+    CHECK(reveal_source_y_frac(elapsed, frozen, 0.25f, close, 1.f) ==
+          doctest::Approx(close));
+    // Bars hanging off the plot read the curve at its edge.
+    CHECK(reveal_source_y_frac(elapsed, frozen, 1.2f, close, 0.f) ==
+          doctest::Approx(y_frac(elapsed, 1.f)));
+}
+
+TEST_CASE("a revealing bar grows about the line and lands with it") {
+    const float source = 40.f;
+    const float open = 100.f, high = 90.f, low = 130.f, close = 120.f;
+    const float mid = 0.5f * (open + close);
+    const auto lerp = [](float a, float b, float t) { return a + (b - a) * t; };
+
+    for (const float p : {0.f, 0.1f, 0.25f, 0.5f, 0.8f, 1.f}) {
+        CAPTURE(p);
+        const float origin = reveal_bar_origin(source, close, mid, p);
+        const float line = lerp(source, close, p);
+        const float bar_open = lerp(origin, open, p);
+        const float bar_close = lerp(origin, close, p);
+        // Body and wick are their final sizes scaled by p...
+        CHECK(bar_close - bar_open == doctest::Approx((close - open) * p));
+        CHECK(lerp(origin, low, p) - lerp(origin, high, p) ==
+              doctest::Approx((low - high) * p));
+        // ...about a centre that leaves the line only as p² does.
+        CHECK(0.5f * (bar_open + bar_close) - line ==
+              doctest::Approx(double(p) * p * (mid - close)));
+    }
+    // Out of nothing, on the line.
+    CHECK(reveal_bar_origin(source, close, mid, 0.f) == source);
+    // Landed: the line on the close, the bar on its prices.
+    const float landed = reveal_bar_origin(source, close, mid, 1.f);
+    CHECK(lerp(landed, high, 1.f) == doctest::Approx(high));
+    CHECK(lerp(landed, close, 1.f) == doctest::Approx(close));
+}
+
 TEST_CASE("over candles the line gives way; as a line it becomes the series") {
     CHECK(presence(0.5f, 0.f) == doctest::Approx(0.125f));
     CHECK(presence(0.5f, 1.f) == doctest::Approx(1.f));

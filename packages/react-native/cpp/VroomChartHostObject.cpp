@@ -720,9 +720,9 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "beginLoadingReveal") {
-    // beginLoadingReveal() — hand-off stage two: collapse every candle onto the
-    // line at zero alpha so it grows outward from there. Call once stage one
-    // reaches 1, then drive setIntervalMorph from 0 to 1.
+    // beginLoadingReveal() — hand-off stage two: the bars grow out of the line
+    // on the core's own clock. Call once stage one reaches 1; beginStreamMorph
+    // and setIntervalMorph are ignored until it lands.
     return lockedFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginLoadingReveal"),

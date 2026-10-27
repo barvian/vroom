@@ -612,9 +612,9 @@ void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 
 // Candle↔line morph blend for animated transitions. `collapse` folds candles
-// toward their close price; `fade` crossfades candles→line. Both 0 = candles,
-// both 1 = line. Driven per-frame by the host animation loop; set_chart_type
-// snaps both to the target.
+// into the line, the loading reveal run backwards; `fade` crossfades
+// candles→line. Both 0 = candles, both 1 = line. Driven per-frame by the host
+// animation loop; set_chart_type snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
 
 // Blends the current-price line's style (the PRICE_INDICATOR_* keys) and the
@@ -642,13 +642,12 @@ void vroom_chart_reset_view(VroomChart* chart);
 // switch) so the price scale re-fits the newly visible candles.
 void vroom_chart_reset_price_scale(VroomChart* chart);
 
-// Opt-in animated y auto-fit. While on, and until the user zooms or scales
-// either axis, the price range eases (quickly) toward the visible candles as
-// the view pans, always keeping their low..high on screen; the vertical part of
-// a translate is ignored so a diagonal drag can't take the scale manual. Any
-// zoom or axis drag freezes y where it stands and ends autoscale for the
-// series; vroom_chart_reset_view re-arms it. `animate` 0 snaps instead of
-// easing (reduced motion). Off by default, which keeps the instant auto-fit.
+// Opt-in animated y auto-fit. While on, the price range eases (quickly) toward
+// the visible candles as the view pans, always keeping their low..high on
+// screen, and no gesture takes it over: a translate's vertical part, a zoom's
+// y factor and a price-axis drag are ignored, so a pinch in any direction
+// scales time only. `animate` 0 snaps instead of easing (reduced motion). Off
+// by default, which keeps the instant auto-fit.
 void vroom_chart_set_autoscale_y(VroomChart* chart, int32_t enabled,
                                  int32_t animate);
 
@@ -735,9 +734,9 @@ void vroom_chart_set_loading_morph(VroomChart* chart, float t);
 // first, while the bars grow out of it and their color fades up. Over candles
 // the line gives way to them; in line mode it becomes the series line.
 //
-// Keep rendering while vroom_chart_is_animating is true. Driving
-// vroom_chart_set_interval_morph yourself takes the bars off the reveal's
-// clock. No-op if the line isn't up.
+// Keep rendering while vroom_chart_is_animating is true. The reveal owns the
+// bars until it lands: begin_stream_morph and set_interval_morph are ignored
+// meanwhile. No-op if the line isn't up.
 void vroom_chart_begin_loading_reveal(VroomChart* chart);
 
 // Advances the morph started by either begin_*_morph above. `t` (clamped to

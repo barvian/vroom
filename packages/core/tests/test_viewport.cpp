@@ -888,6 +888,16 @@ TEST_CASE("price_fraction / y_at_fraction") {
         CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(80.f));
     }
 
+    SUBCASE("fraction_at_y inverts y_at_fraction, padding included") {
+        l.top_padding_frac = 0.1f;
+        l.bottom_padding_frac = 0.1f;
+        l.x_axis_height_px = 200.f;
+        for (double f : {-0.2, 0.0, 0.3, 1.0, 1.4}) {
+            CHECK(vroom::fraction_at_y(l, vroom::y_at_fraction(l, f)) ==
+                  doctest::Approx(f));
+        }
+    }
+
     SUBCASE("price_fraction maps min/mid/max to 0/0.5/1") {
         PriceBounds b{10.0, 30.0};
         CHECK(vroom::price_fraction(b, 10.0) == doctest::Approx(0.0));
@@ -1142,30 +1152,6 @@ TEST_CASE("blend_candle_snapshots resumes from the interrupted shape") {
         // the right one — and a bool has no midpoint to lerp to anyway.
         vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
         CHECK(fresh.bull == false);
-    }
-}
-
-// A tick landing mid-hand-off restarts the color blend at 0. The bar must keep
-// the color it had reached, not turn back to the grey it started from.
-TEST_CASE("blend_candle_snapshots carries the skeleton blend's progress") {
-    using vroom::CandleSnapshot;
-    CandleSnapshot interrupted{0.9f, 0.2f, 0.2f, 0.2f, 0.2f, true};
-    interrupted.skeleton = true;
-    interrupted.skeleton_alpha = 0.f;
-    CandleSnapshot fresh{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
-
-    SUBCASE("most of the way through, little grey is left") {
-        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.9f);
-        CHECK(fresh.skeleton);
-        CHECK(fresh.skeleton_alpha == doctest::Approx(0.f));
-        CHECK(fresh.skeleton_mix == doctest::Approx(0.1f));
-    }
-
-    SUBCASE("a second interruption compounds the first") {
-        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
-        CandleSnapshot again{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
-        vroom::blend_candle_snapshots(&again, 1, &fresh, 1, 0.5f);
-        CHECK(again.skeleton_mix == doctest::Approx(0.25f));
     }
 }
 

@@ -127,6 +127,11 @@ export type VroomTheme = {
    */
   badgeFontSize?: number;
   /**
+   * Text size on the simple crosshair's capsule time badge, in CSS px; the
+   * capsule scales with it. Omit for 15, or pass 0 to follow `badgeFontSize`.
+   */
+  simpleCrosshairBadgeFontSize?: number;
+  /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes
@@ -260,6 +265,10 @@ export type VroomTheme = {
    * grows into it, and the time labels and crosshair time badge fade first.
    */
   showXAxis?: boolean;
+  /** Fixed decimals for every price label and badge (0–12); omit for automatic. */
+  priceDecimals?: number;
+  /** Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for none. */
+  minPriceRangeRatio?: number;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */

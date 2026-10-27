@@ -57,6 +57,9 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     1.f,    // PRICE_INDICATOR_OPACITY — the accent's own alpha
     0.f,    // PRICE_INDICATOR_ROUND_CAP — butt caps by default
     0.f,    // Y_AXIS_FADE — the series stops at the y-axis strip by default
+    15.f,   // SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX
+    -1.f,   // PRICE_DECIMALS — automatic, from the asset's price
+    0.f,    // MIN_PRICE_RANGE_RATIO — auto-fit follows the data alone
 };
 
 }  // namespace

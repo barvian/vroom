@@ -62,11 +62,13 @@ enum class CompactScale {
 
 // How to render a price. `group` inserts thousands separators, which only ever
 // affects the integer part of a non-compact format. `compact` scales the value
-// and appends M / B / T; grouping is skipped in that path.
+// and appends M / B / T; grouping is skipped in that path. `fixed` decimals
+// (VROOM_FLOAT_PRICE_DECIMALS) are left alone by the tick guard.
 struct PriceFormat {
     int          decimals = kPriceMinDecimals;
     bool         group = true;
     CompactScale compact = CompactScale::None;
+    bool         fixed = false;
 };
 
 // Decimals giving kPriceSigDigits significant digits for an asset priced around
@@ -75,8 +77,11 @@ struct PriceFormat {
 int significant_decimals(double reference);
 
 // The format for an asset priced around `reference`, including the compact
-// suffix when |reference| is at least a million.
-PriceFormat price_format_for(double reference);
+// suffix when |reference| is at least a million. `fixed_decimals` >= 0 pins it.
+PriceFormat price_format_for(double reference, double fixed_decimals = -1.0);
+
+// One unit in a fixed `fmt`'s last place, in the data's units; 0 if automatic.
+double min_tick_interval(const PriceFormat& fmt);
 
 // Decimal places needed so adjacent ticks `interval` apart don't collapse to
 // the same string. 0.01 → 2, 0.005 → 3, 1e-8 → 8. Clamped to [0, 12].

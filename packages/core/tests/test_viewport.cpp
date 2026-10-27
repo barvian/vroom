@@ -59,6 +59,17 @@ TEST_CASE("wick_runs_outside_body") {
     }
 }
 
+TEST_CASE("plot_right gives the gutter back as the y-axis fades out") {
+    Layout l = make_layout();
+    l.y_axis_width_px = 60.f;
+    l.right_padding_px = 10.f;
+    l.y_axis_opacity = 1.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(930.f));
+    l.y_axis_opacity = 0.f;
+    l.y_axis_width_px = 0.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(l.width_px));
+}
+
 TEST_CASE("candle_body_width") {
     Layout l = make_layout();
 
@@ -683,6 +694,14 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("auto_price_bounds with a minimum range ratio") {
+    VroomCandle stable[2] = {ohlc(0, 0.9999, 1.0001), ohlc(1, 0.9998, 1.0002)};
+    // mid 1.0, floor 0.02 -> {0.99, 1.01} -> x1.5 -> {0.985, 1.015}
+    const PriceBounds b = vroom::auto_price_bounds(stable, 2, false, 0.02);
+    CHECK(b.min == doctest::Approx(0.985));
+    CHECK(b.max == doctest::Approx(1.015));
+}
+
 TEST_CASE("ease_price_bounds") {
     const PriceBounds none{1.0, 0.0};  // no envelope to contain
 
@@ -1062,6 +1081,11 @@ TEST_CASE("price_ticks") {
         const double top_step = ticks[0] - ticks[1];
         const double bottom_step = ticks[ticks.size() - 2] - ticks.back();
         CHECK(bottom_step < top_step);
+    }
+
+    SUBCASE("a minimum interval coarsens the ticks") {
+        vroom::price_ticks({0.985, 1.015}, 550.f, 64, ticks, 0.01);
+        CHECK(ticks.size() == 3);
     }
 
     SUBCASE("respects max_count and degenerate inputs") {

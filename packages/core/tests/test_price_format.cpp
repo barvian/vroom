@@ -177,6 +177,14 @@ TEST_CASE("the tick guard runs in compact display units") {
     }
 }
 
+TEST_CASE("fixed decimals pin the format and floor the tick interval") {
+    const PriceFormat cents = price_format_for(1.00012, 2.0);
+    CHECK(render(0.99987, cents) == "1.00");
+    CHECK(with_tick_guard(cents, 1e-5).decimals == 2);
+    CHECK(vroom::min_tick_interval(cents) == doctest::Approx(0.01));
+    CHECK_FALSE(price_format_for(1.0, -1.0).fixed);
+}
+
 TEST_CASE("price_decimals keeps adjacent ticks distinct") {
     CHECK(price_decimals(1.0) == 0);
     CHECK(price_decimals(5.0) == 0);

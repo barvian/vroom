@@ -99,4 +99,5 @@ export function applyTheme(handle: ChartHandle, theme: VroomTheme): void {
     if (typeof value !== 'boolean') return;
     handle.setFloat(BOOL_KEYS[field]!, value ? 1 : 0);
   });
+  handle.setFont(theme.fontData);
 }

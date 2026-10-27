@@ -109,7 +109,7 @@ void draw(SkCanvas* canvas,
     }
 
     // Caption, top-left of the pane.
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (tf) {
         SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
         font.setSubpixel(true);

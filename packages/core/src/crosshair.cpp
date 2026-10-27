@@ -108,7 +108,7 @@ SkPaint line_paint(const VroomCrosshairStyle& style, SkColor color) {
 }
 
 bool axis_font(const VroomChart& chart, SkFont* out) {
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (!tf) return false;
     *out = SkFont(tf, vroom::badge_font_px(chart.theme));
     out->setSubpixel(true);

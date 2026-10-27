@@ -4,8 +4,10 @@
 #include <string>
 #include <vector>
 
+#include "VroomFontMgr.h"
 #include "chart.h"
 #include "chart_internal.h"
+#include "fonts.h"
 #include "vroom/vroom_chart.h"
 
 // RN-Skia headers.
@@ -47,6 +49,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFont"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
@@ -141,8 +144,8 @@ jsi::Value crosshairButtonHit(jsi::Runtime& rt,
 //
 // Preferred path: rasterize in *our* Skia and hand RN-Skia raw pixels via
 // Skia.Image.MakeImage — memory is one framebuffer, labels stay correct.
-// Fallback: still serialize, but with kDontIncludeData so the font file is
-// not copied; MakePicture re-resolves sans-serif on RN-Skia's side.
+// Fallback: still serialize, but with kDontIncludeData so the system font file
+// is not copied; MakePicture re-resolves sans-serif on RN-Skia's side.
 namespace {
 class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  public:
@@ -174,14 +177,17 @@ jsi::Object bytesLike(jsi::Runtime& rt, sk_sp<SkData> data) {
   return arg;
 }
 
-sk_sp<const SkData> serializeTypefaceNoEmbed(SkTypeface* tf, void*) {
+// setFont's typeface exists only as bytes, so it travels with the picture.
+sk_sp<const SkData> serializeTypeface(SkTypeface* tf, void*) {
   if (!tf) return nullptr;
-  return tf->serialize(SkTypeface::SerializeBehavior::kDontIncludeData);
+  return tf->serialize(tf == vroom::axis_typeface().get()
+                           ? SkTypeface::SerializeBehavior::kDontIncludeData
+                           : SkTypeface::SerializeBehavior::kDoIncludeData);
 }
 
 jsi::Value wrapSerializedPicture(jsi::Runtime& rt, const sk_sp<SkPicture>& pic) {
   SkSerialProcs procs;
-  procs.fTypefaceProc = serializeTypefaceNoEmbed;
+  procs.fTypefaceProc = serializeTypeface;
   sk_sp<SkData> serialized = pic->serialize(&procs);
   if (!serialized) return jsi::Value::null();
 
@@ -400,6 +406,36 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int key = static_cast<int>(args[0].asNumber());
           vroom_chart_set_float(chart_, static_cast<VroomFloatKey>(key),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setFont") {
+    // setFont(data?) — a font file's bytes for all chart text; none restores
+    // the axis typeface.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setFont"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          sk_sp<SkData> data;
+          if (count > 0 && args[0].isObject() &&
+              args[0].asObject(rt2).isArrayBuffer(rt2)) {
+            auto buf = args[0].asObject(rt2).getArrayBuffer(rt2);
+            data = SkData::MakeWithCopy(buf.data(rt2), buf.size(rt2));
+          }
+          if (data ? data->equals(font_data_.get()) : !font_data_) {
+            return jsi::Value::undefined();
+          }
+          font_data_ = data;
+          static const sk_sp<SkFontMgr> mgr = vroom::makePlatformFontMgr();
+          chart_->typeface =
+              data && mgr ? mgr->makeFromData(std::move(data)) : nullptr;
+          vroom::labels::recompute_axis_width(*chart_);
+          chart_->mark_dirty();
           return jsi::Value::undefined();
         });
   }

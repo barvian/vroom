@@ -4,6 +4,6 @@
 type FootprintSide = "buy" | "sell";
 ```
 
-Source: [types/src/index.ts:1048](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1048)
+Source: [types/src/index.ts:1054](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1054)
 
 Which side of a position a footprint marks.

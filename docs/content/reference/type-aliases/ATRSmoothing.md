@@ -4,7 +4,7 @@
 type ATRSmoothing = "rma" | "sma" | "ema";
 ```
 
-Source: [types/src/index.ts:1387](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1387)
+Source: [types/src/index.ts:1393](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1393)
 
 How the true-range series is smoothed into ATR. `'rma'` is Wilder's original
 (alpha = 1/period) and the conventional default; the other two are the

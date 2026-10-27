@@ -95,8 +95,8 @@ describe('applyTheme', () => {
     expect(floats).toContainEqual([16, 12]);
     expect(floats).toContainEqual([17, 0.6]);
     expect(floats).toContainEqual([18, 6]);
-    expect(floats).toContainEqual([24, 2]);
-    expect(floats).toContainEqual([25, 0.02]);
+    expect(floats).toContainEqual([25, 2]);
+    expect(floats).toContainEqual([26, 0.02]);
     expect(floats).toHaveLength(8);
   });
 

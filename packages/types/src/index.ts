@@ -248,6 +248,12 @@ export type VroomTheme = {
    */
   showYAxis?: boolean;
   /**
+   * Run the price series on under the y-axis strip, fading it out to the right
+   * edge, instead of stopping it at the strip. Defaults to `false`. The labels
+   * and badges stay drawn over it, and it goes with the strip as it hides.
+   */
+  yAxisFade?: boolean;
+  /**
    * Show the time (x) axis strip along the bottom. Defaults to `true`.
    *
    * Behaves like {@link VroomTheme.showYAxis}: the strip collapses, the plot

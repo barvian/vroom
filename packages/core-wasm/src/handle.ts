@@ -58,8 +58,9 @@ export enum FloatKey {
   PriceIndicatorWidth = 21,
   PriceIndicatorOpacity = 22,
   PriceIndicatorRoundCap = 23,
-  PriceDecimals = 24,
-  MinPriceRangeRatio = 25,
+  YAxisFade = 24,
+  PriceDecimals = 25,
+  MinPriceRangeRatio = 26,
 }
 
 /** OHLCV readout for the candle under the crosshair. */

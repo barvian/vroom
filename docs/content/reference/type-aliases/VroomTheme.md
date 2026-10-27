@@ -41,6 +41,7 @@ type VroomTheme = {
   wickBull?: VroomColor;
   wickRoundCap?: boolean;
   wickWidth?: number;
+  yAxisFade?: boolean;
 };
 ```
 
@@ -365,7 +366,7 @@ Line-chart-mode polyline stroke width in px, also the loading line's. Defaults t
 optional minPriceRangeRatio?: number;
 ```
 
-Source: [types/src/index.ts:260](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L260)
+Source: [types/src/index.ts:266](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L266)
 
 Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for none.
 
@@ -377,7 +378,7 @@ Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for 
 optional priceDecimals?: number;
 ```
 
-Source: [types/src/index.ts:258](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L258)
+Source: [types/src/index.ts:264](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L264)
 
 Fixed decimals for every price label and badge (0–12); omit for automatic.
 
@@ -473,7 +474,7 @@ Round the ends of the current-price indicator's dashes. Defaults to `false`.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:256](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L256)
+Source: [types/src/index.ts:262](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L262)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -586,3 +587,17 @@ optional wickWidth?: number;
 Source: [types/src/index.ts:99](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L99)
 
 Wick stroke width in px (applies to both up and down wicks). Defaults to 1.
+
+---
+
+### yAxisFade?
+
+```ts
+optional yAxisFade?: boolean;
+```
+
+Source: [types/src/index.ts:255](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L255)
+
+Run the price series on under the y-axis strip, fading it out to the right
+edge, instead of stopping it at the strip. Defaults to `false`. The labels
+and badges stay drawn over it, and it goes with the strip as it hides.

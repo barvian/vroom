@@ -332,14 +332,17 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
+    // The series runs on past the window into the gutter a hiding y-axis frees
+    // up, or under the axis with Y_AXIS_FADE.
     int64_t end_ms = visible_end_ms;
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
-    if (theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f &&
-        area_w > 0.f) {
+    const bool right_fade =
+        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
+    const float past = (right_fade ? lay.width_px : vroom::plot_right(lay)) - area_w;
+    if (past > 0.f && area_w > 0.f) {
         end_ms += static_cast<int64_t>(
-            static_cast<double>(visible_end_ms - visible_start_ms) *
-            (lay.width_px - area_w) / area_w);
+            static_cast<double>(visible_end_ms - visible_start_ms) * past / area_w);
     }
     return vroom::draw_indices(candles.data(), candles.size(),
                                visible_start_ms, end_ms, candle_duration_ms);
@@ -739,9 +742,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // overhangs the newest candle's center, which the pinned-to-latest framing
     // puts within a few pixels of that edge. It stops at the y-axis strip.
     const float tip_clip_right = width_px - lay.y_axis_width_px;
+    const float plot_right = vroom::plot_right(lay);
     const bool right_fade =
         theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
-    const float series_right = right_fade ? width_px : candle_right;
+    // Where the line series' clip stops; candles and volume have none.
+    const float series_right = right_fade ? width_px : plot_right;
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
@@ -1004,15 +1009,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, vroom::x_axis_top(lay),
-                         right_fade ? width_px : candle_right,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), series_right,
                          lay.x_axis_height_px),
         axis_bg);
-    const float axis_block_w = width_px - candle_right;
     if (!right_fade) {
         canvas->drawRect(
-            SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
-            axis_bg);
+            SkRect::MakeLTRB(plot_right, 0, width_px, height_px), axis_bg);
     }
 
     // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
@@ -1035,14 +1037,14 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     }
     if (right_fade) {
         // Shrinks onto the plot edge with the axis, so hiding it doesn't pop.
-        const float x0 = candle_right - kRightFadeOverhangPx * lay.y_axis_opacity;
+        const float x0 = plot_right - kRightFadeOverhangPx * lay.y_axis_opacity;
         const SkPoint pts[2] = {
             {x0, 0.f}, {x0 + (width_px - x0) * lay.y_axis_opacity, 0.f}};
         SkPaint mask;
         mask.setBlendMode(SkBlendMode::kDstIn);
         mask.setShader(vroom::legible_fade(pts));
         canvas->drawRect(SkRect::MakeLTRB(x0, 0.f, width_px, height_px), mask);
-        // The simple crosshair's dim stops at candle_right to spare the labels.
+        // The simple crosshair's dim stops at plot_right to spare the labels.
         const VroomCrosshairStyle& style = crosshair_style;
         if (crosshair_active && crosshair_simple() && style.dim_ahead &&
             style.dim_opacity < 1.f) {
@@ -1050,7 +1052,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             dim.setBlendMode(SkBlendMode::kDstIn);
             dim.setAlphaf(style.dim_opacity);
             canvas->drawRect(
-                SkRect::MakeLTRB(candle_right, 0.f, width_px, height_px), dim);
+                SkRect::MakeLTRB(plot_right, 0.f, width_px, height_px), dim);
         }
         canvas->restore();
     }
@@ -1098,7 +1100,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             canvas->translate(0.f, (candle_area_h * 0.5f - y) * price_slide);
         }
         price_indicator_accent = vroom::price_indicator::draw(
-            canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
+            canvas, *this, lay, bounds, plot_right, candle_area_h, price_from,
             morph_t, tip_left);
         if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();

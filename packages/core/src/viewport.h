@@ -73,6 +73,12 @@ inline float candle_area_width(const Layout& l) {
     return l.width_px - l.y_axis_width_px - l.right_padding_px;
 }
 
+// Where the y-axis strip's mask starts. The gutter only keeps the series off
+// the price labels, so as they fade out the series gets it back.
+inline float plot_right(const Layout& l) {
+    return candle_area_width(l) + l.right_padding_px * (1.f - l.y_axis_opacity);
+}
+
 // Always in price units, whatever the scale mode. `log` only changes how a
 // price maps onto the band: linearly, or linearly in log10(price) (TradingView's
 // logarithmic price scale). Anything that reshapes the bounds — pan, zoom,

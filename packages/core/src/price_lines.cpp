@@ -305,7 +305,7 @@ void draw(SkCanvas* canvas,
                 SkPaint ghost = line;
                 ghost.setColor(SkColorSetA(
                     color, static_cast<U8CPU>(SkColorGetA(color) * kGhostAlpha)));
-                canvas->drawLine(0.f, ghost_y, candle_right, ghost_y, ghost);
+                canvas->drawLine(0.f, ghost_y, vroom::plot_right(lay), ghost_y, ghost);
             }
         }
 
@@ -317,7 +317,7 @@ void draw(SkCanvas* canvas,
 
         // An axis badge pulls its stroke out to the pill. A line with no badge
         // still stops at the plot edge, and so does the drag ghost above.
-        float line_right = candle_right;
+        float line_right = vroom::plot_right(lay);
         if (has_font && (pl.flags & VROOM_PRICE_LINE_AXIS_LABEL) != 0 &&
             lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f) {
             char axis_buf[48];

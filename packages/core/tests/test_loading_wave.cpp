@@ -142,7 +142,7 @@ TEST_CASE("a revealing bar grows about the line and lands with it") {
               doctest::Approx((low - high) * p));
         // ...about a centre that leaves the line only as p² does.
         CHECK(0.5f * (bar_open + bar_close) - line ==
-              doctest::Approx(p * p * (mid - close)));
+              doctest::Approx(double(p) * p * (mid - close)));
     }
     // Out of nothing, on the line.
     CHECK(reveal_bar_origin(source, close, mid, 0.f) == source);

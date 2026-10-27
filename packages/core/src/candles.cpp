@@ -226,12 +226,31 @@ void draw(SkCanvas* canvas,
             if (flip) draw_border = draw_border_bull || draw_border_bear;
         }
 
-        canvas->drawLine(g.x, y_high, g.x, y_low, *wick_p);
-
         const float y_top = std::min(y_open, y_close);
         const float y_bot = std::max(y_open, y_close);
         const float h = std::max(1.f, y_bot - y_top);
         const SkRect body = SkRect::MakeXYWH(g.x - half_body, y_top, body_w, h);
+
+        // A fading slot's body is see-through. Drawing its wick only where the
+        // body isn't makes the candle fade as one shape, with no layer per bar.
+        // Skipped for a theme whose own fill is translucent, which shows the
+        // wick through the body settled as well.
+        const uint32_t theme_fill = bull ? fill_bull : fill_bear;
+        if (fill_p->getAlpha() < 255 && SkColorGetA(theme_fill) == 255) {
+            const float cap = wick_round ? wick_p->getStrokeWidth() * 0.5f : 0.f;
+            const auto runs = vroom::wick_runs_outside_body(
+                y_high, y_low, body.top(), body.bottom(), cap);
+            if (runs.above_top < runs.above_bottom) {
+                canvas->drawLine(g.x, runs.above_top, g.x, runs.above_bottom,
+                                 *wick_p);
+            }
+            if (runs.below_top < runs.below_bottom) {
+                canvas->drawLine(g.x, runs.below_top, g.x, runs.below_bottom,
+                                 *wick_p);
+            }
+        } else {
+            canvas->drawLine(g.x, y_high, g.x, y_low, *wick_p);
+        }
         // Corner radius clamped so thin candles / short bodies don't over-round.
         const float r = std::min({body_r, body_w * 0.5f, h * 0.5f});
         if (r > 0.f) {

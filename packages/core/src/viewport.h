@@ -73,6 +73,12 @@ inline float candle_area_width(const Layout& l) {
     return l.width_px - l.y_axis_width_px - l.right_padding_px;
 }
 
+// Where the y-axis strip's mask starts. The gutter only keeps the series off
+// the price labels, so as they fade out the series gets it back.
+inline float plot_right(const Layout& l) {
+    return candle_area_width(l) + l.right_padding_px * (1.f - l.y_axis_opacity);
+}
+
 // Always in price units, whatever the scale mode. `log` only changes how a
 // price maps onto the band: linearly, or linearly in log10(price) (TradingView's
 // logarithmic price scale). Anything that reshapes the bounds — pan, zoom,
@@ -234,6 +240,21 @@ float candle_body_width(const Layout& layout,
                         int64_t window_ms,
                         int64_t candle_duration_ms);
 
+// The wick of a candle whose body is see-through, as the runs above and below
+// the body (y grows down), so it can't show through the body and the candle
+// fades as one shape. `cap` is how far the stroke's cap reaches past an end.
+// A run that wouldn't clear the body comes back empty (top >= bottom).
+struct WickRuns {
+    float above_top, above_bottom;
+    float below_top, below_bottom;
+};
+inline WickRuns wick_runs_outside_body(float high, float low, float body_top,
+                                       float body_bottom, float cap) {
+    const float above_bottom = body_top - cap < low ? body_top - cap : low;
+    const float below_top = body_bottom + cap > high ? body_bottom + cap : high;
+    return {high, above_bottom, below_top, low};
+}
+
 // Inverse of candle_body_width: the time window that makes each candle body
 // `body_px` wide. Returns 0 if any input is degenerate. Does not consult the
 // data span — a short series leaves empty space on the left (width wins).
@@ -357,8 +378,10 @@ constexpr double kAutoYZoom = 1.5;
 // used whenever the price scale is in auto (follow-the-data) mode. Returns the
 // {0, 1} sentinel when count == 0 (callers keep their previous bounds). With
 // `log` the widening is symmetric in log space, so the bounds stay positive.
+// A positive `min_range_ratio` first widens the data's range about its midpoint
+// to at least that fraction of the midpoint price.
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
-                              bool log);
+                              bool log, double min_range_ratio = 0.0);
 
 // --- Animated auto-fit (autoscaleY) -----------------------------------------
 // Each edge of the on-screen range chases its target exponentially, so the
@@ -433,8 +456,9 @@ inline constexpr float kLogTickMinGapPx = 30.f;
 // from the local price density and skipping ticks closer than
 // kLogTickMinGapPx — so labels read 10k / 20k / 50k / 100k rather than one
 // fixed step.
+// No interval goes below `min_interval` (price_format.h's min_tick_interval).
 void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
-                 std::vector<double>& out);
+                 std::vector<double>& out, double min_interval = 0.0);
 
 // The finest tick interval on screen, which sets how many decimals the labels
 // need (price_format.h's with_tick_guard). For log that's the bottom of the band.

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "curve.h"
@@ -349,10 +350,9 @@ void draw_close_line(SkCanvas* canvas,
     if (path.isEmpty()) return;
 
     SkPoint end;
-    // Only where draw_close_tip's on-pane guard would draw the dot.
-    const bool hole = tip_hole_r > 0.f && path.getLastPt(&end) &&
-                      end.fX >= 0.f && end.fX <= candle_right &&
-                      end.fY >= 0.f && end.fY <= candle_area_h;
+    // Unbounded: the dot draws while any of it is on the plot, and a hole for
+    // one wholly off it falls outside the stroke's clip anyway.
+    const bool hole = tip_hole_r > 0.f && path.getLastPt(&end);
     canvas->save();
     if (hole) {
         canvas->clipRRect(SkRRect::MakeOval(SkRect::MakeLTRB(
@@ -430,7 +430,7 @@ void fill_under(SkCanvas* canvas,
     canvas->restore();
 }
 
-void draw_close_tip(SkCanvas* canvas,
+float draw_close_tip(SkCanvas* canvas,
                     const Layout& lay,
                     const PriceBounds& bounds,
                     const ::VroomCandle* visible,
@@ -451,22 +451,23 @@ void draw_close_tip(SkCanvas* canvas,
                     const CandleSnapshot* from,
                     std::size_t from_n,
                     float morph_t) {
-    if (!canvas || opacity <= 0.f) return;
+    constexpr float kNone = std::numeric_limits<float>::infinity();
+    if (!canvas || opacity <= 0.f) return kNone;
     morph_t = std::clamp(morph_t, 0.f, 1.f);
 
     const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
     const std::size_t slots = std::max(n, from_count);
-    if (slots == 0) return;
+    if (slots == 0) return kNone;
 
     const SkPoint tip =
         close_vertex(lay, bounds, visible, n, window_ms, visible_start_ms,
                      candle_duration_ms, from, from_count, morph_t, 0);
-    draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
+    return draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
                     line_color, line_width, dot_radius, opacity, pulse,
                     pulse_phase, pulse_opacity);
 }
 
-void draw_tip_marker(SkCanvas* canvas,
+float draw_tip_marker(SkCanvas* canvas,
                      const SkPoint& tip,
                      float candle_right,
                      float clip_right,
@@ -478,45 +479,50 @@ void draw_tip_marker(SkCanvas* canvas,
                      bool pulse,
                      float pulse_phase,
                      float pulse_opacity) {
-    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    constexpr float kNone = std::numeric_limits<float>::infinity();
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return kNone;
     opacity = std::clamp(opacity, 0.f, 1.f);
-    if (opacity <= 0.f) return;
-    // Panned or scaled out of the pane: the line's end isn't on screen, so
-    // there's nothing to mark. The clip below would hide it anyway, but the ring
-    // is wide enough that a tip just off-pane would still bleed in.
-    if (tip.fY < 0.f || tip.fY > candle_area_h) return;
-    if (tip.fX < 0.f || tip.fX > candle_right) return;
-
+    if (opacity <= 0.f) return kNone;
     const float dot_r = vroom::tip_geometry::of(line_width, dot_radius).dot_r;
+    const vroom::tip_pulse::Frame f =
+        pulse ? vroom::tip_pulse::at(pulse_phase, pulse_opacity)
+              : vroom::tip_pulse::Frame{0.f, 0.f};
+    const float reach =
+        f.alpha > 0.f
+            ? std::max(dot_r, dot_r * (f.radius_mul + vroom::tip_pulse::kWidthMul * 0.5f))
+            : dot_r;
+
+    // The dot is anchored at the newest candle's center, which on a view pinned
+    // to the latest bar is closer to candle_right than the dot's own radius, so
+    // it has to reach into the gutter to draw in full. `clip_right` is the
+    // gutter's far side — the y-axis strip's edge — which the layout keeps wide
+    // enough for the dot (see tip_geometry::gutter_px). The pulse ring is much
+    // wider still and clips there; that is intended.
+    const SkRect clip = SkRect::MakeLTRB(
+        0.f, 0.f, std::max(candle_right, clip_right), candle_area_h);
+    // Panned or scaled out of the pane, the marker goes once nothing of it is
+    // left inside the clip, so it slides out with the line.
+    if (!clip.intersects(SkRect::MakeLTRB(tip.fX - reach, tip.fY - reach,
+                                          tip.fX + reach, tip.fY + reach))) {
+        return kNone;
+    }
 
     canvas->save();
-    // Wider than the on-pane test above: the dot is anchored at the newest
-    // candle's center, which on a view pinned to the latest bar is closer to
-    // candle_right than the dot's own radius, so it has to reach into the gutter
-    // to draw in full. `clip_right` is the gutter's far side — the y-axis
-    // strip's edge — which the layout keeps wide enough for the dot (see
-    // tip_geometry::gutter_px). The pulse ring is much wider still and clips
-    // there; that is intended.
-    canvas->clipRect(
-        SkRect::MakeLTRB(0.f, 0.f, std::max(candle_right, clip_right),
-                         candle_area_h));
+    canvas->clipRect(clip);
     // Ring and dot draw opaque into one layer that takes the alpha, so the dot
     // doesn't stack its own over the ring's.
     if (opacity < 1.f) canvas->saveLayerAlphaf(nullptr, opacity);
 
     // Ring first: it starts flush with the dot, and the dot paints over the
     // antialiased seam where the two meet.
-    if (pulse) {
-        const vroom::tip_pulse::Frame f = vroom::tip_pulse::at(pulse_phase, pulse_opacity);
-        if (f.alpha > 0.f) {
-            SkPaint ring;
-            ring.setAntiAlias(true);
-            ring.setColor(static_cast<SkColor>(line_color));
-            ring.setAlphaf(ring.getAlphaf() * f.alpha);
-            ring.setStyle(SkPaint::kStroke_Style);
-            ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
-            canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
-        }
+    if (f.alpha > 0.f) {
+        SkPaint ring;
+        ring.setAntiAlias(true);
+        ring.setColor(static_cast<SkColor>(line_color));
+        ring.setAlphaf(ring.getAlphaf() * f.alpha);
+        ring.setStyle(SkPaint::kStroke_Style);
+        ring.setStrokeWidth(dot_r * vroom::tip_pulse::kWidthMul);
+        canvas->drawCircle(tip.fX, tip.fY, dot_r * f.radius_mul, ring);
     }
 
     SkPaint dot;
@@ -526,6 +532,7 @@ void draw_tip_marker(SkCanvas* canvas,
 
     if (opacity < 1.f) canvas->restore();
     canvas->restore();
+    return tip.fX - dot_r;
 }
 
 void fill_between(SkCanvas* canvas,

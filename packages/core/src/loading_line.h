@@ -34,10 +34,11 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay);
 // Stage 3, over the scene, at `chart.loading_reveal`. In line mode it stands
 // in for the series line and its tip dot. Drawn after the axis backgrounds:
 // the line clips itself to the plot, and the dot may reach `clip_right`.
-void draw_reveal(SkCanvas* canvas,
-                 const VroomChart& chart,
-                 const Layout& lay,
-                 float clip_right);
+// Returns the dot's left edge, or infinity when no dot drew.
+float draw_reveal(SkCanvas* canvas,
+                  const VroomChart& chart,
+                  const Layout& lay,
+                  float clip_right);
 
 // The line-mode wash under stage 3's line, in place of the series' own so it
 // sits under the line as drawn. Goes where the series fill would.

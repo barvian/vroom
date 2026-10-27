@@ -544,6 +544,10 @@ typedef enum {
     VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px
     VROOM_FLOAT_PRICE_INDICATOR_OPACITY,    // 0..1, multiplies the accent's alpha
     VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP,  // 0/1: round the dash ends
+    VROOM_FLOAT_Y_AXIS_FADE,  // 0/1: fade the series out under the y-axis strip
+    VROOM_FLOAT_SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX,  // simple crosshair's time badge; <= 0 follows BADGE_FONT_SIZE_PX
+    VROOM_FLOAT_PRICE_DECIMALS,          // fixed price-label decimals, rounded; < 0 = automatic
+    VROOM_FLOAT_MIN_PRICE_RANGE_RATIO,   // auto-fit span floor as a fraction of mid price; <= 0 = off
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 

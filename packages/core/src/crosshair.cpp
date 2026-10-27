@@ -35,10 +35,14 @@ constexpr float kPadH = 8.f;     // badge padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-badge corner radius
 static_assert(kPadH == vroom::labels::kAxisBadgePadH,
               "the stroke ends on the pad this badge actually draws");
+// The simple crosshair's time badge: a capsule around its text on a line 4/3
+// the text size (20px for the default 15px).
+constexpr float kSimplePadH = 10.f;
 
 // Draws a filled rounded-rect badge with `text` centered on (`cx`, `cy`).
 // Matches the current-price indicator's geometry (glyph-bounds centering so the
-// digits sit on the center regardless of the font's cap-height metric).
+// digits sit on the center regardless of the font's cap-height metric). A
+// `box_h` of 0 fits the box to the glyphs.
 void draw_badge(SkCanvas* canvas,
                 const SkFont& font,
                 const char* text,
@@ -46,13 +50,16 @@ void draw_badge(SkCanvas* canvas,
                 float cy,
                 SkColor fill,
                 SkColor text_color,
-                float opacity) {
+                float opacity,
+                float pad_h = kPadH,
+                float box_h = 0.f,
+                float radius = kCorner) {
     if (opacity <= 0.f) return;
     const size_t len = std::strlen(text);
     SkRect tb;
     const float text_w = font.measureText(text, len, SkTextEncoding::kUTF8, &tb);
-    const float box_w = text_w + 2.f * kPadH;
-    const float box_h = tb.height() + 2.f * kPadV;
+    const float box_w = text_w + 2.f * pad_h;
+    if (box_h <= 0.f) box_h = tb.height() + 2.f * kPadV;
     const SkRect rect = SkRect::MakeXYWH(cx - box_w * 0.5f, cy - box_h * 0.5f,
                                          box_w, box_h);
 
@@ -60,7 +67,7 @@ void draw_badge(SkCanvas* canvas,
     box.setAntiAlias(true);
     box.setColor(fill);
     box.setAlphaf(box.getAlphaf() * opacity);
-    canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
+    canvas->drawRRect(SkRRect::MakeRectXY(rect, radius, radius), box);
 
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
@@ -273,7 +280,8 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
         SkPaint dim;
         dim.setColor(colors[VROOM_COLOR_BACKGROUND]);
         dim.setAlphaf(1.f - style.dim_opacity);
-        canvas->drawRect(SkRect::MakeLTRB(cx, 0.f, candle_right, vline_bottom), dim);
+        canvas->drawRect(
+            SkRect::MakeLTRB(cx, 0.f, vroom::plot_right(lay), vline_bottom), dim);
     }
 
     SkFont font;
@@ -281,10 +289,11 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     char buf[32] = {};
     float badge_h = 0.f;
     if (tf) {
+        const float px =
+            chart.theme.floats[VROOM_FLOAT_SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX];
+        if (px > 0.f) font.setSize(px);
         format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
-        SkRect tb;
-        font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8, &tb);
-        badge_h = tb.height() + 2.f * kPadV;
+        badge_h = font.getSize() * 4.f / 3.f + 2.f * kPadV;
     }
     const auto g = vroom::crosshair_style::simple_geometry(
         lay.height_px, vline_bottom, badge_h, style.simple_height);
@@ -296,11 +305,12 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     if (!tf) return;
 
     const float text_w = font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
-    const float half_w = (text_w + 2.f * kPadH) * 0.5f;
+    const float half_w = (text_w + 2.f * kSimplePadH) * 0.5f;
     const float badge_cx =
         std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
     draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
-               badge_fill(chart), badge_text(chart), 1.f);
+               badge_fill(chart), badge_text(chart), 1.f, kSimplePadH, badge_h,
+               badge_h * 0.5f);
 }
 }  // namespace
 

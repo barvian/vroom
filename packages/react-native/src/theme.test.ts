@@ -81,6 +81,8 @@ describe('applyTheme', () => {
       badgeFontSize: 12,
       lineTipPulseOpacity: 0.6,
       lineTipDotRadius: 6,
+      priceDecimals: 2,
+      minPriceRangeRatio: 0.02,
     });
     expect(FLOAT_KEYS.lineTension).toBe(13);
     expect(FLOAT_KEYS.axisFontSize).toBe(3);
@@ -93,7 +95,9 @@ describe('applyTheme', () => {
     expect(floats).toContainEqual([16, 12]);
     expect(floats).toContainEqual([17, 0.6]);
     expect(floats).toContainEqual([18, 6]);
-    expect(floats).toHaveLength(6);
+    expect(floats).toContainEqual([26, 2]);
+    expect(floats).toContainEqual([27, 0.02]);
+    expect(floats).toHaveLength(8);
   });
 
   it('pushes the current-price indicator keys at their VroomFloatKey index', () => {

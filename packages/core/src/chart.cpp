@@ -30,6 +30,7 @@
 #include "drawings.h"
 #include "footprints.h"
 #include "fvg_overlay.h"
+#include "gradient.h"
 #include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
@@ -54,6 +55,9 @@
 
 namespace {
 constexpr SkColor kVwapLine = 0xff00bcd4;  // cyan
+// With Y_AXIS_FADE on and the price axis showing, the series runs on under it,
+// fading out from this far inside the plot to the chart's right edge.
+constexpr float kRightFadeOverhangPx = 11.25f;
 }  // namespace
 
 VroomChart::VroomChart() : theme(vroom::default_theme()) {}
@@ -327,11 +331,14 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
-    // The series runs on past the window into the gutter a hiding y-axis frees up.
+    // The series runs on past the window into the gutter a hiding y-axis frees
+    // up, or under the axis with Y_AXIS_FADE.
     int64_t end_ms = visible_end_ms;
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
-    const float past = vroom::plot_right(lay) - area_w;
+    const bool right_fade =
+        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
+    const float past = (right_fade ? lay.width_px : vroom::plot_right(lay)) - area_w;
     if (past > 0.f && area_w > 0.f) {
         end_ms += static_cast<int64_t>(
             static_cast<double>(visible_end_ms - visible_start_ms) * past / area_w);
@@ -734,8 +741,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // overhangs the newest candle's center, which the pinned-to-latest framing
     // puts within a few pixels of that edge. It stops at the y-axis strip.
     const float tip_clip_right = width_px - lay.y_axis_width_px;
-    // Where the line series' clip stops; candles and volume have none.
     const float plot_right = vroom::plot_right(lay);
+    const bool right_fade =
+        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
+    // Where the line series' clip stops; candles and volume have none.
+    const float series_right = right_fade ? width_px : plot_right;
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
@@ -803,6 +813,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         return at_line_end && translucent ? tip_dot_r : 0.f;
     };
 
+    if (right_fade) canvas->saveLayer(nullptr, nullptr);
     if (fade_out) {
         // First half: only what was captured, at the axis envelope opacity.
         // Layers with no snapshot (volume, liquidity, FVG, drawings) would
@@ -829,7 +840,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, plot_right,
+                    visible_start_ms, candle_duration_ms, series_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
                     fade * layer, morph_from.data(), morph_n, 0.f,
@@ -845,7 +856,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, plot_right,
+                    visible_start_ms, candle_duration_ms, series_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
                     morph_from.data(), morph_n, 0.f,
@@ -891,7 +902,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             } else if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, plot_right,
+                    visible_start_ms, candle_duration_ms, series_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], fade,
                     morph_src, morph_n_draw, morph_t,
@@ -946,7 +957,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, plot_right,
+                    visible_start_ms, candle_duration_ms, series_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * series_line,
                     morph_src, morph_n_draw, morph_t,
@@ -997,22 +1008,23 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), plot_right,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), series_right,
                          lay.x_axis_height_px),
         axis_bg);
-    canvas->drawRect(
-        SkRect::MakeLTRB(plot_right, 0, width_px, height_px), axis_bg);
+    if (!right_fade) {
+        canvas->drawRect(
+            SkRect::MakeLTRB(plot_right, 0, width_px, height_px), axis_bg);
+    }
 
     // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
     //      dot sits on the newest close, which a view following the latest bar
     //      parks within a few pixels of candle_right — closer than the dot's own
-    //      radius — so it paints into the gutter the layout widened for it. The
-    //      clip still stops at the y-axis strip, so nothing here can reach the
-    //      price labels; the pulse ring simply ends there.
+    //      radius — so it paints into the gutter the layout widened for it, or
+    //      on under the right fade. The labels draw after, so it can't cover them.
     if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
         vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
-            visible_start_ms, candle_duration_ms, plot_right, tip_clip_right,
+            visible_start_ms, candle_duration_ms, series_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
             theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,
@@ -1020,6 +1032,27 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
             tip_from_n, tip_morph_t);
+    }
+    if (right_fade) {
+        // Shrinks onto the plot edge with the axis, so hiding it doesn't pop.
+        const float x0 = plot_right - kRightFadeOverhangPx * lay.y_axis_opacity;
+        const SkPoint pts[2] = {
+            {x0, 0.f}, {x0 + (width_px - x0) * lay.y_axis_opacity, 0.f}};
+        SkPaint mask;
+        mask.setBlendMode(SkBlendMode::kDstIn);
+        mask.setShader(vroom::legible_fade(pts));
+        canvas->drawRect(SkRect::MakeLTRB(x0, 0.f, width_px, height_px), mask);
+        // The simple crosshair's dim stops at plot_right to spare the labels.
+        const VroomCrosshairStyle& style = crosshair_style;
+        if (crosshair_active && crosshair_simple() && style.dim_ahead &&
+            style.dim_opacity < 1.f) {
+            SkPaint dim;
+            dim.setBlendMode(SkBlendMode::kDstIn);
+            dim.setAlphaf(style.dim_opacity);
+            canvas->drawRect(
+                SkRect::MakeLTRB(plot_right, 0.f, width_px, height_px), dim);
+        }
+        canvas->restore();
     }
 
     // 6.6. Loading line, stage 3. After the masks because, in line mode, it

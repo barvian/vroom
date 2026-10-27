@@ -897,6 +897,8 @@ export function VroomChart(props: VroomChartProps) {
       // Always classify — an axis drag controls the axis even while the
       // crosshair is up. Only a chart-area drag interacts with the crosshair.
       panMode.current = hitAxis(e.x, e.y);
+      // autoscaleY owns the price range, so its strip pans like the plot.
+      if (autoscaleY && panMode.current === 'price-axis') panMode.current = 'chart';
       // A draggable price line takes the drag over from the chart. Seeding the
       // preview at the committed price puts the label in drag styling before the
       // first move, so the grab registers immediately.
@@ -1030,6 +1032,7 @@ export function VroomChart(props: VroomChartProps) {
   const pinchStart = useRef({
     spanX: 1,
     spanY: 1,
+    dist: 1,
     ratioX: 1,
     ratioY: 1,
     enableX: false,
@@ -1048,6 +1051,7 @@ export function VroomChart(props: VroomChartProps) {
       pinchStart.current = {
         spanX,
         spanY,
+        dist: Math.max(Math.hypot(spanX, spanY), MIN_SPAN),
         ratioX: 1,
         ratioY: 1,
         enableX: spanX >= MIN_SPAN && spanX >= spanY * AXIS_RATIO,
@@ -1066,16 +1070,24 @@ export function VroomChart(props: VroomChartProps) {
       // current span at MIN_SPAN so a near-zero span (fingers crossing on that
       // axis) can't blow the ratio up.
       let frameX = 1;
-      if (start.enableX) {
-        const ratioX = Math.max(Math.abs(a.x - b.x), MIN_SPAN) / start.spanX;
+      let frameY = 1;
+      if (autoscaleY) {
+        // autoscaleY owns the price range, so a pinch in any direction scales
+        // time, by how far the fingers' distance has changed.
+        const ratioX = Math.max(Math.hypot(a.x - b.x, a.y - b.y), MIN_SPAN) / start.dist;
         frameX = ratioX / start.ratioX;
         start.ratioX = ratioX;
-      }
-      let frameY = 1;
-      if (start.enableY) {
-        const ratioY = Math.max(Math.abs(a.y - b.y), MIN_SPAN) / start.spanY;
-        frameY = ratioY / start.ratioY;
-        start.ratioY = ratioY;
+      } else {
+        if (start.enableX) {
+          const ratioX = Math.max(Math.abs(a.x - b.x), MIN_SPAN) / start.spanX;
+          frameX = ratioX / start.ratioX;
+          start.ratioX = ratioX;
+        }
+        if (start.enableY) {
+          const ratioY = Math.max(Math.abs(a.y - b.y), MIN_SPAN) / start.spanY;
+          frameY = ratioY / start.ratioY;
+          start.ratioY = ratioY;
+        }
       }
       if (frameX === 1 && frameY === 1) return;
 

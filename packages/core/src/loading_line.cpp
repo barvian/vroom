@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 #include "chart.h"
@@ -218,14 +219,15 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     stroke_path(canvas, chart, path, stroke_color(chart), b);
 }
 
-void draw_reveal(SkCanvas* canvas,
-                 const VroomChart& chart,
-                 const Layout& lay,
-                 float clip_right) {
-    if (!canvas) return;
+float draw_reveal(SkCanvas* canvas,
+                  const VroomChart& chart,
+                  const Layout& lay,
+                  float clip_right) {
+    constexpr float kNone = std::numeric_limits<float>::infinity();
+    if (!canvas) return kNone;
     const RevealFrame frame = reveal_frame(chart, lay);
     const auto& pts = frame.pts;
-    if (pts.empty()) return;
+    if (pts.empty()) return kNone;
 
     const float r = chart.loading_reveal;
     const auto& f = chart.theme.floats;
@@ -242,15 +244,17 @@ void draw_reveal(SkCanvas* canvas,
     if (alpha < 1.f) canvas->saveLayerAlphaf(nullptr, alpha);
     // Exactly what the axis backgrounds leave uncovered, so the line looks as
     // it did drawn beneath them.
-    const float candle_right = candle_area_width(lay);
+    const float candle_right = plot_right(lay);
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, x_axis_top(lay)));
     stroke_path(canvas, chart, spline(pts, frame.tension), color, 1.f);
     canvas->restore();
 
     // The series tip, ring joining partway on the phase the real one resumes.
-    if (frame.line_mode <= 0.f || f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) return;
-    ma_overlay::draw_tip_marker(
+    if (frame.line_mode <= 0.f || f[VROOM_FLOAT_LINE_TIP_DOT] <= 0.5f) {
+        return kNone;
+    }
+    return ma_overlay::draw_tip_marker(
         canvas, pts.back(), candle_right, clip_right, price_pane_bottom(lay),
         color, f[VROOM_FLOAT_LINE_WIDTH_PX],
         f[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], 1.f,
@@ -272,7 +276,7 @@ void draw_reveal_fill(SkCanvas* canvas,
         frame.line_mode * chart.loading_reveal;
     if (alpha <= 0.f) return;
     ma_overlay::fill_under(canvas, spline(frame.pts, frame.tension),
-                           candle_area_width(lay), price_pane_bottom(lay),
+                           plot_right(lay), price_pane_bottom(lay),
                            chart.theme.colors[VROOM_COLOR_LINE], alpha);
 }
 

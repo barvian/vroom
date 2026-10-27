@@ -33,6 +33,43 @@ VroomCandle ohlc(int64_t t, double low, double high) {
 
 }  // namespace
 
+// A fading candle draws its wick around its body, never through it.
+TEST_CASE("wick_runs_outside_body") {
+    SUBCASE("a wick out both ends splits at the body") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 90.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top == 10.f);
+        CHECK(r.above_bottom == 40.f);
+        CHECK(r.below_top == 60.f);
+        CHECK(r.below_bottom == 90.f);
+    }
+    SUBCASE("round caps stop short of the body by their reach") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 90.f, 40.f, 60.f, 1.f);
+        CHECK(r.above_bottom == 39.f);
+        CHECK(r.below_top == 61.f);
+    }
+    SUBCASE("a wick inside the body leaves nothing to draw") {
+        const auto r = vroom::wick_runs_outside_body(45.f, 55.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top >= r.above_bottom);
+        CHECK(r.below_top >= r.below_bottom);
+    }
+    SUBCASE("a wick on one side only keeps that side") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 50.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top < r.above_bottom);
+        CHECK(r.below_top >= r.below_bottom);
+    }
+}
+
+TEST_CASE("plot_right gives the gutter back as the y-axis fades out") {
+    Layout l = make_layout();
+    l.y_axis_width_px = 60.f;
+    l.right_padding_px = 10.f;
+    l.y_axis_opacity = 1.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(930.f));
+    l.y_axis_opacity = 0.f;
+    l.y_axis_width_px = 0.f;
+    CHECK(vroom::plot_right(l) == doctest::Approx(l.width_px));
+}
+
 TEST_CASE("candle_body_width") {
     Layout l = make_layout();
 
@@ -657,6 +694,14 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("auto_price_bounds with a minimum range ratio") {
+    VroomCandle stable[2] = {ohlc(0, 0.9999, 1.0001), ohlc(1, 0.9998, 1.0002)};
+    // mid 1.0, floor 0.02 -> {0.99, 1.01} -> x1.5 -> {0.985, 1.015}
+    const PriceBounds b = vroom::auto_price_bounds(stable, 2, false, 0.02);
+    CHECK(b.min == doctest::Approx(0.985));
+    CHECK(b.max == doctest::Approx(1.015));
+}
+
 TEST_CASE("ease_price_bounds") {
     const PriceBounds none{1.0, 0.0};  // no envelope to contain
 
@@ -1028,6 +1073,11 @@ TEST_CASE("price_ticks") {
         CHECK(bottom_step < top_step);
     }
 
+    SUBCASE("a minimum interval coarsens the ticks") {
+        vroom::price_ticks({0.985, 1.015}, 550.f, 64, ticks, 0.01);
+        CHECK(ticks.size() == 3);
+    }
+
     SUBCASE("respects max_count and degenerate inputs") {
         vroom::price_ticks({1.0, 1'000'000.0, true}, 600.f, 3, ticks);
         CHECK(ticks.size() <= 3);
@@ -1092,6 +1142,30 @@ TEST_CASE("blend_candle_snapshots resumes from the interrupted shape") {
         // the right one — and a bool has no midpoint to lerp to anyway.
         vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
         CHECK(fresh.bull == false);
+    }
+}
+
+// A tick landing mid-hand-off restarts the color blend at 0. The bar must keep
+// the color it had reached, not turn back to the grey it started from.
+TEST_CASE("blend_candle_snapshots carries the skeleton blend's progress") {
+    using vroom::CandleSnapshot;
+    CandleSnapshot interrupted{0.9f, 0.2f, 0.2f, 0.2f, 0.2f, true};
+    interrupted.skeleton = true;
+    interrupted.skeleton_alpha = 0.f;
+    CandleSnapshot fresh{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
+
+    SUBCASE("most of the way through, little grey is left") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.9f);
+        CHECK(fresh.skeleton);
+        CHECK(fresh.skeleton_alpha == doctest::Approx(0.f));
+        CHECK(fresh.skeleton_mix == doctest::Approx(0.1f));
+    }
+
+    SUBCASE("a second interruption compounds the first") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
+        CandleSnapshot again{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
+        vroom::blend_candle_snapshots(&again, 1, &fresh, 1, 0.5f);
+        CHECK(again.skeleton_mix == doctest::Approx(0.25f));
     }
 }
 

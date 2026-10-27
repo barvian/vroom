@@ -28,6 +28,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, number>> = {
 export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   axisFontSize: 3, // VROOM_FLOAT_AXIS_FONT_SIZE_PX
   badgeFontSize: 16, // VROOM_FLOAT_BADGE_FONT_SIZE_PX
+  simpleCrosshairBadgeFontSize: 25, // VROOM_FLOAT_SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX
   wickWidth: 1, // VROOM_FLOAT_WICK_WIDTH_PX
   candleRadius: 8, // VROOM_FLOAT_CANDLE_RADIUS_PX
   volumeRadius: 10, // VROOM_FLOAT_VOLUME_RADIUS_PX
@@ -40,6 +41,8 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   priceIndicatorDashGap: 20, // VROOM_FLOAT_PRICE_INDICATOR_GAP_PX
   priceIndicatorLineWidth: 21, // VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX
   priceIndicatorLineOpacity: 22, // VROOM_FLOAT_PRICE_INDICATOR_OPACITY
+  priceDecimals: 26, // VROOM_FLOAT_PRICE_DECIMALS
+  minPriceRangeRatio: 27, // VROOM_FLOAT_MIN_PRICE_RANGE_RATIO
 };
 
 // Named because useChartCore clears it directly under reduced motion, outside
@@ -56,6 +59,7 @@ export const BOOL_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   lineTipDot: 14, // VROOM_FLOAT_LINE_TIP_DOT
   lineTipPulse: FLOAT_LINE_TIP_PULSE,
   priceIndicatorRoundCap: 23, // VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP
+  yAxisFade: 24, // VROOM_FLOAT_Y_AXIS_FADE
 };
 
 // Parses a color into a packed 0xAARRGGBB integer (Skia's ARGB order).

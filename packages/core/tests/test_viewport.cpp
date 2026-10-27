@@ -33,6 +33,32 @@ VroomCandle ohlc(int64_t t, double low, double high) {
 
 }  // namespace
 
+// A fading candle draws its wick around its body, never through it.
+TEST_CASE("wick_runs_outside_body") {
+    SUBCASE("a wick out both ends splits at the body") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 90.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top == 10.f);
+        CHECK(r.above_bottom == 40.f);
+        CHECK(r.below_top == 60.f);
+        CHECK(r.below_bottom == 90.f);
+    }
+    SUBCASE("round caps stop short of the body by their reach") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 90.f, 40.f, 60.f, 1.f);
+        CHECK(r.above_bottom == 39.f);
+        CHECK(r.below_top == 61.f);
+    }
+    SUBCASE("a wick inside the body leaves nothing to draw") {
+        const auto r = vroom::wick_runs_outside_body(45.f, 55.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top >= r.above_bottom);
+        CHECK(r.below_top >= r.below_bottom);
+    }
+    SUBCASE("a wick on one side only keeps that side") {
+        const auto r = vroom::wick_runs_outside_body(10.f, 50.f, 40.f, 60.f, 0.f);
+        CHECK(r.above_top < r.above_bottom);
+        CHECK(r.below_top >= r.below_bottom);
+    }
+}
+
 TEST_CASE("plot_right gives the gutter back as the y-axis fades out") {
     Layout l = make_layout();
     l.y_axis_width_px = 60.f;

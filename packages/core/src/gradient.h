@@ -28,4 +28,9 @@ sk_sp<SkShader> linear_alpha_ramp(const SkPoint pts[2],
                                   float a0,
                                   float a1);
 
+// Opaque black to 20% along pts[0] -> pts[1], eased by cubic-bezier(0.65, 0,
+// 0.35, 1) over the first 70% and 20% after, like a legible ProgressiveBlur's
+// 80% tint.
+sk_sp<SkShader> legible_fade(const SkPoint pts[2]);
+
 }  // namespace vroom

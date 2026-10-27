@@ -56,6 +56,7 @@ export const BOOL_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   lineTipDot: 14, // VROOM_FLOAT_LINE_TIP_DOT
   lineTipPulse: FLOAT_LINE_TIP_PULSE,
   priceIndicatorRoundCap: 23, // VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP
+  yAxisFade: 24, // VROOM_FLOAT_Y_AXIS_FADE
 };
 
 // Parses a color into a packed 0xAARRGGBB integer (Skia's ARGB order).

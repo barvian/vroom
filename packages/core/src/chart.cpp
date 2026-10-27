@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdocumentation"
@@ -1019,8 +1020,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      parks within a few pixels of candle_right — closer than the dot's own
     //      radius — so it paints into the gutter the layout widened for it, or
     //      on under the right fade. The labels draw after, so it can't cover them.
+    float tip_left = std::numeric_limits<float>::infinity();
     if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
-        vroom::ma_overlay::draw_close_tip(
+        tip_left = vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
             visible_start_ms, candle_duration_ms, series_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
@@ -1056,7 +1058,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 6.6. Loading line, stage 3. After the masks because, in line mode, it
     //      carries the tip marker 6.5 would draw.
     if (loading_line_revealing) {
-        vroom::loading_line::draw_reveal(canvas, *this, lay, tip_clip_right);
+        tip_left = vroom::loading_line::draw_reveal(canvas, *this, lay,
+                                                    tip_clip_right);
     }
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)
@@ -1096,7 +1099,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         }
         price_indicator_accent = vroom::price_indicator::draw(
             canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
-            morph_t);
+            morph_t, tip_left);
         if (price_slide > 0.f) canvas->restore();
         if (price_alpha < 1.f) canvas->restore();
 

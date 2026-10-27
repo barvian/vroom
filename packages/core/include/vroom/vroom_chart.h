@@ -731,9 +731,9 @@ void vroom_chart_set_loading_morph(VroomChart* chart, float t);
 // first, while the bars grow out of it and their color fades up. Over candles
 // the line gives way to them; in line mode it becomes the series line.
 //
-// Keep rendering while vroom_chart_is_animating is true. Driving
-// vroom_chart_set_interval_morph yourself takes the bars off the reveal's
-// clock. No-op if the line isn't up.
+// Keep rendering while vroom_chart_is_animating is true. The reveal owns the
+// bars until it lands: begin_stream_morph and set_interval_morph are ignored
+// meanwhile. No-op if the line isn't up.
 void vroom_chart_begin_loading_reveal(VroomChart* chart);
 
 // Advances the morph started by either begin_*_morph above. `t` (clamped to

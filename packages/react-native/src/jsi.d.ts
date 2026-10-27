@@ -19,8 +19,10 @@ export interface ChartHandle {
    * FLOAT_KEYS in theme.ts); e.g. wick width.
    */
   setFloat(key: number, value: number): void;
-  /** Font file bytes for all chart text; omit for the system font. */
+  /** Font file bytes for the chart's text; omit for the system font. */
   setFont(data?: ArrayBuffer): void;
+  /** Font file bytes for the badges; omit to follow setFont. */
+  setBadgeFont(data?: ArrayBuffer): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
   /**

@@ -100,4 +100,5 @@ export function applyTheme(handle: ChartHandle, theme: VroomTheme): void {
     handle.setFloat(BOOL_KEYS[field]!, value ? 1 : 0);
   });
   handle.setFont(theme.fontData);
+  handle.setBadgeFont(theme.badgeFontData);
 }

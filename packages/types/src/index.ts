@@ -132,10 +132,15 @@ export type VroomTheme = {
    */
   simpleCrosshairBadgeFontSize?: number;
   /**
-   * React Native only. A .ttf/.otf file's bytes for all chart text — axis
-   * labels and badges alike. Omit for the system font.
+   * React Native only. A .ttf/.otf file's bytes for the chart's text, e.g. axis
+   * labels. Omit for the system font.
    */
   fontData?: ArrayBuffer;
+  /**
+   * React Native only. A .ttf/.otf file's bytes for the badges `badgeFontSize`
+   * sizes. Omit to follow `fontData`.
+   */
+  badgeFontData?: ArrayBuffer;
   /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads

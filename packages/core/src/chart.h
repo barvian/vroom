@@ -497,8 +497,10 @@ struct VroomChart {
     sk_sp<SkPicture> chart_picture;
     bool chart_dirty = true;
 
-    // Typeface for all text, set by the RN bridge; null = the axis typeface.
+    // Typefaces set by the RN bridge. Null text falls back to the axis
+    // typeface, null badges to the text one.
     sk_sp<SkTypeface> typeface;
+    sk_sp<SkTypeface> badge_typeface;
 
     // --- label fade animation ----------------------------------------------
     std::vector<vroom::labels::YLabelFade> y_fades;

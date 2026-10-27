@@ -50,6 +50,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFont"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setBadgeFont"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
@@ -128,6 +129,22 @@ jsi::Value crosshairButtonHit(jsi::Runtime& rt,
   obj.setProperty(rt, "pane", std::move(pane));
   return obj;
 }
+
+// Sets `tf` from the font file bytes in `arg`, or clears it without any. False
+// when the bytes match `last`, leaving `tf` as it was.
+bool loadFont(jsi::Runtime& rt, const jsi::Value& arg, sk_sp<SkData>& last,
+              sk_sp<SkTypeface>& tf) {
+  sk_sp<SkData> data;
+  if (arg.isObject() && arg.asObject(rt).isArrayBuffer(rt)) {
+    auto buf = arg.asObject(rt).getArrayBuffer(rt);
+    data = SkData::MakeWithCopy(buf.data(rt), buf.size(rt));
+  }
+  if (data ? data->equals(last.get()) : !last) return false;
+  last = data;
+  static const sk_sp<SkFontMgr> mgr = vroom::makePlatformFontMgr();
+  tf = data && mgr ? mgr->makeFromData(std::move(data)) : nullptr;
+  return true;
+}
 }  // namespace
 
 #if defined(__ANDROID__)
@@ -177,7 +194,8 @@ jsi::Object bytesLike(jsi::Runtime& rt, sk_sp<SkData> data) {
   return arg;
 }
 
-// setFont's typeface exists only as bytes, so it travels with the picture.
+// setFont and setBadgeFont typefaces exist only as bytes, so they travel with
+// the picture.
 sk_sp<const SkData> serializeTypeface(SkTypeface* tf, void*) {
   if (!tf) return nullptr;
   return tf->serialize(tf == vroom::axis_typeface().get()
@@ -410,32 +428,24 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
         });
   }
 
-  if (name == "setFont") {
-    // setFont(data?) — a font file's bytes for all chart text; none restores
-    // the axis typeface.
+  if (name == "setFont" || name == "setBadgeFont") {
+    // setFont(data?) / setBadgeFont(data?) — a font file's bytes for the
+    // chart's text / its badges; none restores the fallback.
+    const bool badge = name == "setBadgeFont";
     return lockedFunction(
         rt,
-        jsi::PropNameID::forAscii(rt, "setFont"),
+        propName,
         1,
-        [this](jsi::Runtime& rt2,
-               const jsi::Value& /*thisVal*/,
-               const jsi::Value* args,
-               size_t count) -> jsi::Value {
-          sk_sp<SkData> data;
-          if (count > 0 && args[0].isObject() &&
-              args[0].asObject(rt2).isArrayBuffer(rt2)) {
-            auto buf = args[0].asObject(rt2).getArrayBuffer(rt2);
-            data = SkData::MakeWithCopy(buf.data(rt2), buf.size(rt2));
+        [this, badge](jsi::Runtime& rt2,
+                      const jsi::Value& /*thisVal*/,
+                      const jsi::Value* args,
+                      size_t count) -> jsi::Value {
+          if (count > 0 &&
+              loadFont(rt2, args[0], badge ? badge_font_data_ : font_data_,
+                       badge ? chart_->badge_typeface : chart_->typeface)) {
+            vroom::labels::recompute_axis_width(*chart_);
+            chart_->mark_dirty();
           }
-          if (data ? data->equals(font_data_.get()) : !font_data_) {
-            return jsi::Value::undefined();
-          }
-          font_data_ = data;
-          static const sk_sp<SkFontMgr> mgr = vroom::makePlatformFontMgr();
-          chart_->typeface =
-              data && mgr ? mgr->makeFromData(std::move(data)) : nullptr;
-          vroom::labels::recompute_axis_width(*chart_);
-          chart_->mark_dirty();
           return jsi::Value::undefined();
         });
   }

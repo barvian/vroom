@@ -208,7 +208,7 @@ void draw(SkCanvas* canvas,
                     // lerp_argb covers the alpha channel too, so the bar's
                     // opacity rides in on the same blend as its color.
                     c = lerp_argb(scale_alpha(skeleton_color, frm->skeleton_alpha),
-                                  c, morph_t);
+                                  c, 1.f - frm->skeleton_mix * (1.f - morph_t));
                 } else if (flip) {
                     c = lerp_argb(bull ? c_bear : c_bull, c, morph_t);
                 }

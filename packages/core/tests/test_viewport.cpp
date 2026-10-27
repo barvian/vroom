@@ -1145,6 +1145,30 @@ TEST_CASE("blend_candle_snapshots resumes from the interrupted shape") {
     }
 }
 
+// A tick landing mid-hand-off restarts the color blend at 0. The bar must keep
+// the color it had reached, not turn back to the grey it started from.
+TEST_CASE("blend_candle_snapshots carries the skeleton blend's progress") {
+    using vroom::CandleSnapshot;
+    CandleSnapshot interrupted{0.9f, 0.2f, 0.2f, 0.2f, 0.2f, true};
+    interrupted.skeleton = true;
+    interrupted.skeleton_alpha = 0.f;
+    CandleSnapshot fresh{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
+
+    SUBCASE("most of the way through, little grey is left") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.9f);
+        CHECK(fresh.skeleton);
+        CHECK(fresh.skeleton_alpha == doctest::Approx(0.f));
+        CHECK(fresh.skeleton_mix == doctest::Approx(0.1f));
+    }
+
+    SUBCASE("a second interruption compounds the first") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
+        CandleSnapshot again{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
+        vroom::blend_candle_snapshots(&again, 1, &fresh, 1, 0.5f);
+        CHECK(again.skeleton_mix == doctest::Approx(0.25f));
+    }
+}
+
 TEST_CASE("blend_candle_snapshots pairs from the right edge") {
     using vroom::CandleSnapshot;
     // Slot 0 is the newest in both, so a window holding one fewer bar than the

@@ -122,6 +122,11 @@ struct CandleSnapshot {
     // first frame matches the skeleton frame it replaced; without it every bar
     // would jump to full opacity the instant data landed.
     float skeleton_alpha = 1.f;
+    // How much of that grey is left in the slot's starting color: 1 for a fresh
+    // hand-off, less once a tick has interrupted it partway (see
+    // blend_candle_snapshots). The grey's own alpha can't stand in for this —
+    // it's a different color, so carrying progress in it turns the bar grey.
+    float skeleton_mix = 1.f;
 };
 
 // One vertex of the loading line's morph, holding both ends of the animation
@@ -189,10 +194,12 @@ inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
         // The skeleton state, by contrast, carries over from the interrupted
         // capture: a tick landing mid-hand-off must not abandon the grey blend
         // partway, or the bar would snap to full color while its geometry is
-        // still moving. Its alpha follows the same lerp as the geometry.
+        // still moving. What's left of the grey shrinks by the progress made,
+        // so the restart starts on the color that was on screen.
         if (from.skeleton) {
             to.skeleton = true;
-            to.skeleton_alpha = mix(from.skeleton_alpha, 1.f);
+            to.skeleton_alpha = from.skeleton_alpha;
+            to.skeleton_mix = from.skeleton_mix * (1.f - morph_t);
         }
     }
 }

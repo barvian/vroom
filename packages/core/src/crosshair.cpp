@@ -35,9 +35,8 @@ constexpr float kPadH = 8.f;     // badge padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-badge corner radius
 static_assert(kPadH == vroom::labels::kAxisBadgePadH,
               "the stroke ends on the pad this badge actually draws");
-// The simple crosshair's time badge: a capsule around 15px text on a 20px line.
-constexpr float kSimpleFontPx = 15.f;
-constexpr float kSimpleLineH = 20.f;
+// The simple crosshair's time badge: a capsule around its text on a line 4/3
+// the text size (20px for the default 15px).
 constexpr float kSimplePadH = 10.f;
 
 // Draws a filled rounded-rect badge with `text` centered on (`cx`, `cy`).
@@ -289,9 +288,11 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     char buf[32] = {};
     float badge_h = 0.f;
     if (tf) {
-        font.setSize(kSimpleFontPx);
+        const float px =
+            chart.theme.floats[VROOM_FLOAT_SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX];
+        if (px > 0.f) font.setSize(px);
         format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
-        badge_h = kSimpleLineH + 2.f * kPadV;
+        badge_h = font.getSize() * 4.f / 3.f + 2.f * kPadV;
     }
     const auto g = vroom::crosshair_style::simple_geometry(
         lay.height_px, vline_bottom, badge_h, style.simple_height);

@@ -21,6 +21,7 @@
                                      // sk_sp<SkPicture> field's destructor
                                      // is callable wherever VroomChart is.
 #include "include/core/SkRefCnt.h"
+#include "include/core/SkTypeface.h"
 #pragma clang diagnostic pop
 
 #include "crosshair_style.h"
@@ -497,6 +498,11 @@ struct VroomChart {
     // --- picture cache ------------------------------------------------------
     sk_sp<SkPicture> chart_picture;
     bool chart_dirty = true;
+
+    // Typefaces set by the RN bridge. Null text falls back to the axis
+    // typeface, null badges to the text one.
+    sk_sp<SkTypeface> typeface;
+    sk_sp<SkTypeface> badge_typeface;
 
     // --- label fade animation ----------------------------------------------
     std::vector<vroom::labels::YLabelFade> y_fades;

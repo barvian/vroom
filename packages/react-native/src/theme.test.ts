@@ -36,6 +36,8 @@ describe('applyTheme', () => {
       setColor: vi.fn((key: number, argb: number) => {
         calls.push([key, argb]);
       }),
+      setFont: vi.fn(),
+      setBadgeFont: vi.fn(),
     } as unknown as ChartHandle;
     return { handle, calls };
   };
@@ -73,6 +75,8 @@ describe('applyTheme', () => {
       setFloat: vi.fn((key: number, value: number) => {
         floats.push([key, value]);
       }),
+      setFont: vi.fn(),
+      setBadgeFont: vi.fn(),
     } as unknown as ChartHandle;
     applyTheme(handle, {
       lineWidth: 2.5,
@@ -100,6 +104,20 @@ describe('applyTheme', () => {
     expect(floats).toHaveLength(8);
   });
 
+  it('pushes the font data', () => {
+    const setFont = vi.fn();
+    const setBadgeFont = vi.fn();
+    const handle = { setColor: vi.fn(), setFloat: vi.fn(), setFont, setBadgeFont } as unknown as ChartHandle;
+    const fontData = new ArrayBuffer(8);
+    const badgeFontData = new ArrayBuffer(8);
+    applyTheme(handle, { fontData, badgeFontData });
+    applyTheme(handle, { fontData, badgeFontData });
+    expect(setFont).toHaveBeenCalledOnce();
+    expect(setFont).toHaveBeenCalledWith(fontData);
+    expect(setBadgeFont).toHaveBeenCalledOnce();
+    expect(setBadgeFont).toHaveBeenCalledWith(badgeFontData);
+  });
+
   it('pushes the current-price indicator keys at their VroomFloatKey index', () => {
     const floats: Array<[number, number]> = [];
     const handle = {
@@ -107,6 +125,8 @@ describe('applyTheme', () => {
       setFloat: vi.fn((key: number, value: number) => {
         floats.push([key, value]);
       }),
+      setFont: vi.fn(),
+      setBadgeFont: vi.fn(),
     } as unknown as ChartHandle;
     applyTheme(handle, {
       priceIndicatorDashLength: 4,

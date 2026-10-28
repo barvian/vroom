@@ -196,7 +196,7 @@ void draw_y_labels(SkCanvas* canvas,
                    const VroomChart& chart,
                    const Layout& lay,
                    const PriceBounds& bounds) {
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (!tf) return;
     // The fade state still advances in update_y_fades, so a hidden axis picks up
     // wherever the ticks moved to once it is revealed again.
@@ -276,7 +276,7 @@ void update_x_fades(VroomChart& chart,
         f.label_target = 0.f;
     }
 
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     const SkFont font = axis_font(chart, tf);
 
     int64_t t = vroom::first_tick_at_or_after(start_ms, tick);
@@ -355,7 +355,7 @@ void draw_x_labels(SkCanvas* canvas,
                    const Layout& lay,
                    int64_t start_ms,
                    int64_t end_ms) {
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (!tf || chart.candles.empty()) return;
     if (end_ms <= start_ms) return;
     // See draw_y_labels: update_x_fades keeps running while the strip is hidden.
@@ -481,7 +481,7 @@ void recompute_axis_width(VroomChart& chart) {
     chart.price_fmt = vroom::price_format_for(
         reference_price(chart), chart.theme.floats[VROOM_FLOAT_PRICE_DECIMALS]);
 
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (!tf) {
         chart.axis_width_px = 0.f;
         return;
@@ -517,8 +517,9 @@ void recompute_axis_width(VroomChart& chart) {
                                 ? chart.price_line_style.font_size_px
                                 : badge_px;
     SkFont axis_font(tf, axis_px);
-    SkFont badge_font(tf, badge_px);
-    SkFont line_font(tf, vroom::price_lines::clamp_label_font_px(requested));
+    const auto badge_tf = chart.badge_typeface ? chart.badge_typeface : tf;
+    SkFont badge_font(badge_tf, badge_px);
+    SkFont line_font(badge_tf, vroom::price_lines::clamp_label_font_px(requested));
 
     // Tick text and the crosshair / current-price badges share the column, so
     // budget the wider of the two at the badge pad.

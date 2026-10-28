@@ -687,6 +687,9 @@ struct VroomChart {
     };
     LoadingTarget loading_target() const;
 
+    // Where the loading line ends, as a fraction of the plot's width.
+    float loading_line_end() const;
+
     // The line's vertices aimed at the candles as they're framed right now,
     // each starting from the wave at phase `elapsed`. Empty with nothing to
     // aim at.

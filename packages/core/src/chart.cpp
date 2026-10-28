@@ -1324,6 +1324,13 @@ VroomChart::LoadingTarget VroomChart::loading_target() const {
     return t;
 }
 
+float VroomChart::loading_line_end() const {
+    const auto lay = layout();
+    const float slot =
+        default_candle_px / lay.candle_width_ratio / vroom::candle_area_width(lay);
+    return slot > 0.f && slot < 1.f ? 1.f - 0.5f * slot : 1.f;
+}
+
 std::vector<vroom::LinePoint> VroomChart::aim_loading_line(float elapsed) const {
     std::vector<vroom::LinePoint> pts;
     const auto lay = layout();
@@ -1364,7 +1371,7 @@ std::vector<vroom::LinePoint> VroomChart::aim_loading_line(float elapsed) const 
     // plot and eases into a level run leading into the series; leaving those
     // spans out instead would snap the line's length on the first frame.
     const int across = vroom::loading_wave::sample_count(area_w);
-    const float step = 1.f / static_cast<float>(across);
+    const float step = loading_line_end() / static_cast<float>(across);
     const float first_xf = center_x_frac(target.visible[0]);
     const float last_xf = center_x_frac(target.visible[target.n - 1]);
 

@@ -15,6 +15,8 @@
 
 #include <jsi/jsi.h>
 
+#include "include/core/SkData.h"
+
 struct VroomChart;
 
 namespace vroom {
@@ -42,6 +44,9 @@ class ChartHostObject : public facebook::jsi::HostObject {
   facebook::jsi::Value gestureFrame(facebook::jsi::Runtime& runtime);
 
   VroomChart* chart_ = nullptr;
+  // Last setFont / setBadgeFont bytes, so repeats skip the rebuild.
+  sk_sp<SkData> font_data_;
+  sk_sp<SkData> badge_font_data_;
   bool gestureFrames_ = true;
   // VroomChart calls in from both the JS and the UI runtime, and the core
   // isn't thread-safe.

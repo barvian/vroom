@@ -7,6 +7,7 @@ type VroomTheme = {
   axisFontSize?: number;
   axisText?: VroomColor;
   background?: VroomColor;
+  badgeFontData?: ArrayBuffer;
   badgeFontSize?: number;
   badgeText?: VroomColor;
   bear?: VroomColor;
@@ -16,6 +17,7 @@ type VroomTheme = {
   candleRadius?: number;
   crosshair?: VroomColor;
   crosshairTarget?: VroomColor;
+  fontData?: ArrayBuffer;
   grid?: VroomColor;
   lineColor?: VroomColor;
   lineGradientOpacity?: number;
@@ -115,6 +117,19 @@ Chart + axis-strip background.
 
 ---
 
+### badgeFontData?
+
+```ts
+optional badgeFontData?: ArrayBuffer;
+```
+
+Source: [types/src/index.ts:143](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L143)
+
+React Native only. A .ttf/.otf file's bytes for the badges `badgeFontSize`
+sizes. Omit to follow `fontData`.
+
+---
+
 ### badgeFontSize?
 
 ```ts
@@ -136,7 +151,7 @@ follow `axisFontSize`.
 optional badgeText?: VroomColor;
 ```
 
-Source: [types/src/index.ts:144](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L144)
+Source: [types/src/index.ts:154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L154)
 
 Text drawn on a filled badge — the current-price indicator, the crosshair's
 price and time badges, and price-line pills. Defaults to white, which reads
@@ -215,7 +230,7 @@ Corner radius (px) of candle bodies. Defaults to 0 (square).
 optional crosshair?: VroomColor;
 ```
 
-Source: [types/src/index.ts:146](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L146)
+Source: [types/src/index.ts:156](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L156)
 
 Crosshair dashed lines.
 
@@ -227,9 +242,22 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Source: [types/src/index.ts:148](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L148)
+Source: [types/src/index.ts:158](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L158)
 
 Crosshair target — the hollow ring/dot at the intersection.
+
+---
+
+### fontData?
+
+```ts
+optional fontData?: ArrayBuffer;
+```
+
+Source: [types/src/index.ts:138](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L138)
+
+React Native only. A .ttf/.otf file's bytes for the chart's text, e.g. axis
+labels. Omit for the system font.
 
 ---
 
@@ -251,7 +279,7 @@ Gridlines.
 optional lineColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:150](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L150)
+Source: [types/src/index.ts:160](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L160)
 
 Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 
@@ -263,7 +291,7 @@ Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 optional lineGradientOpacity?: number;
 ```
 
-Source: [types/src/index.ts:171](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L171)
+Source: [types/src/index.ts:181](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L181)
 
 Opacity of the gradient filled beneath the line-chart polyline, at its
 strongest point. The fill uses `lineColor` and ramps to fully transparent at
@@ -277,7 +305,7 @@ the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 optional lineTension?: number;
 ```
 
-Source: [types/src/index.ts:181](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L181)
+Source: [types/src/index.ts:191](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L191)
 
 How much to round the line chart's corners, from 0 (straight segments
 between closes) to 1 (fully smooth). Defaults to 0.
@@ -295,7 +323,7 @@ gradient fill beneath the line as well, so the two stay flush.
 optional lineTipDot?: boolean;
 ```
 
-Source: [types/src/index.ts:190](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L190)
+Source: [types/src/index.ts:200](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L200)
 
 Mark the line chart's newest end with a dot. Defaults to `true`.
 
@@ -312,7 +340,7 @@ candle↔line transition.
 optional lineTipDotRadius?: number;
 ```
 
-Source: [types/src/index.ts:196](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L196)
+Source: [types/src/index.ts:206](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L206)
 
 Radius of the `lineTipDot` in px. Defaults to 1.5× `lineWidth`, and never
 less than 2px. The `lineTipPulse` ring scales with it: five sixths of the
@@ -326,7 +354,7 @@ radius wide, reaching 3.5× the radius at its widest.
 optional lineTipPulse?: boolean;
 ```
 
-Source: [types/src/index.ts:204](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L204)
+Source: [types/src/index.ts:214](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L214)
 
 Pulse a ring outward from the tip dot, once every 1.5s. Defaults to `false`.
 
@@ -342,7 +370,7 @@ continuously — leave it off for charts that should be able to go idle.
 optional lineTipPulseOpacity?: number;
 ```
 
-Source: [types/src/index.ts:209](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L209)
+Source: [types/src/index.ts:219](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L219)
 
 Opacity of the `lineTipPulse` ring as it leaves the dot, from 0 to 1. The
 ring fades from here to fully transparent as it grows. Defaults to 0.4.
@@ -355,7 +383,7 @@ ring fades from here to fully transparent as it grows. Defaults to 0.4.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:165](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L165)
+Source: [types/src/index.ts:175](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L175)
 
 Line-chart-mode polyline stroke width in px, also the loading line's. Defaults to 1.5.
 
@@ -367,7 +395,7 @@ Line-chart-mode polyline stroke width in px, also the loading line's. Defaults t
 optional minPriceRangeRatio?: number;
 ```
 
-Source: [types/src/index.ts:271](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L271)
+Source: [types/src/index.ts:281](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L281)
 
 Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for none.
 
@@ -379,7 +407,7 @@ Narrowest auto-fit range as a fraction of the mid price (0.02 = ±1%); omit for 
 optional priceDecimals?: number;
 ```
 
-Source: [types/src/index.ts:269](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L269)
+Source: [types/src/index.ts:279](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L279)
 
 Fixed decimals for every price label and badge (0–12); omit for automatic.
 
@@ -391,7 +419,7 @@ Fixed decimals for every price label and badge (0–12); omit for automatic.
 optional priceIndicatorBadgeText?: VroomColor;
 ```
 
-Source: [types/src/index.ts:241](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L241)
+Source: [types/src/index.ts:251](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L251)
 
 Text on the current-price badge in the y-axis strip. Defaults to
 `badgeText`. Useful when `accentBull` / `accentBear` are light enough that
@@ -405,7 +433,7 @@ the shared badge text doesn't read against them.
 optional priceIndicatorDashGap?: number;
 ```
 
-Source: [types/src/index.ts:223](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L223)
+Source: [types/src/index.ts:233](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L233)
 
 Gap in px between the current-price indicator's dashes. Defaults to 2; 0
 draws a solid line.
@@ -420,7 +448,7 @@ Like `priceIndicatorDashLength`, this is the gap you see, caps included.
 optional priceIndicatorDashLength?: number;
 ```
 
-Source: [types/src/index.ts:216](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L216)
+Source: [types/src/index.ts:226](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L226)
 
 Dash length in px of the current-price indicator's dashed line. Defaults to 2.
 
@@ -435,7 +463,7 @@ on, the round ends are taken out of it rather than added to it.
 optional priceIndicatorLineOpacity?: number;
 ```
 
-Source: [types/src/index.ts:233](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L233)
+Source: [types/src/index.ts:243](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L243)
 
 Opacity of the current-price indicator's dashed line, from 0 to 1. Defaults
 to 1.
@@ -451,7 +479,7 @@ gets fainter still. The price badge keeps the accent's own alpha.
 optional priceIndicatorLineWidth?: number;
 ```
 
-Source: [types/src/index.ts:225](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L225)
+Source: [types/src/index.ts:235](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L235)
 
 Stroke width in px of the current-price indicator's dashed line. Defaults to 1.
 
@@ -463,7 +491,7 @@ Stroke width in px of the current-price indicator's dashed line. Defaults to 1.
 optional priceIndicatorRoundCap?: boolean;
 ```
 
-Source: [types/src/index.ts:235](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L235)
+Source: [types/src/index.ts:245](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L245)
 
 Round the ends of the current-price indicator's dashes. Defaults to `false`.
 
@@ -475,7 +503,7 @@ Round the ends of the current-price indicator's dashes. Defaults to `false`.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:267](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L267)
+Source: [types/src/index.ts:277](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L277)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -490,7 +518,7 @@ grows into it, and the time labels and crosshair time badge fade first.
 optional showYAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:254](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L254)
+Source: [types/src/index.ts:264](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L264)
 
 Show the price (y) axis strip down the right edge. Defaults to `true`.
 
@@ -524,7 +552,7 @@ capsule scales with it. Omit for 15, or pass 0 to follow `badgeFontSize`.
 optional skeleton?: VroomColor;
 ```
 
-Source: [types/src/index.ts:163](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L163)
+Source: [types/src/index.ts:173](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L173)
 
 The line drawn across the plot while loading (see the `loading` prop).
 Defaults to inheriting `axisText`, the tone Liveline draws its loading
@@ -610,7 +638,7 @@ Wick stroke width in px (applies to both up and down wicks). Defaults to 1.
 optional yAxisFade?: boolean;
 ```
 
-Source: [types/src/index.ts:260](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L260)
+Source: [types/src/index.ts:270](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L270)
 
 Run the price series on under the y-axis strip, fading it out to the right
 edge, instead of stopping it at the strip. Defaults to `false`. The labels

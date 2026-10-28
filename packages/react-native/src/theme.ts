@@ -78,6 +78,8 @@ export function parseColor(value: VroomColor): number | null {
   return parseInt(s, 16) >>> 0;
 }
 
+const applied = new WeakMap<ChartHandle, VroomTheme>();
+
 // Pushes every provided theme color + numeric float into the chart core via
 // handle.setColor / handle.setFloat. Unspecified or unparseable values are
 // skipped (they keep their default).
@@ -99,4 +101,8 @@ export function applyTheme(handle: ChartHandle, theme: VroomTheme): void {
     if (typeof value !== 'boolean') return;
     handle.setFloat(BOOL_KEYS[field]!, value ? 1 : 0);
   });
+  const last = applied.get(handle);
+  if (theme.fontData !== last?.fontData) handle.setFont(theme.fontData);
+  if (theme.badgeFontData !== last?.badgeFontData) handle.setBadgeFont(theme.badgeFontData);
+  applied.set(handle, theme);
 }

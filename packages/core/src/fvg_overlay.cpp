@@ -184,7 +184,7 @@ void draw_labels(SkCanvas* canvas,
     const bool any_inverse = cfg.show_inverse && !chart.fvg_inverse_label.empty();
     if (!cfg.labels_enabled || (chart.fvg_label.empty() && !any_inverse)) return;
 
-    auto tf = vroom::axis_typeface();
+    auto tf = vroom::typeface(chart);
     if (!tf) return;
     const float size = cfg.label_font_size > 0.f
                            ? cfg.label_font_size

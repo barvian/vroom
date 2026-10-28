@@ -4,8 +4,10 @@
 #include <string>
 #include <vector>
 
+#include "VroomFontMgr.h"
 #include "chart.h"
 #include "chart_internal.h"
+#include "fonts.h"
 #include "vroom/vroom_chart.h"
 
 // RN-Skia headers.
@@ -47,6 +49,8 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFont"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setBadgeFont"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
@@ -125,6 +129,22 @@ jsi::Value crosshairButtonHit(jsi::Runtime& rt,
   obj.setProperty(rt, "pane", std::move(pane));
   return obj;
 }
+
+// Sets `tf` from the font file bytes in `arg`, or clears it without any. False
+// when the bytes match `last`, leaving `tf` as it was.
+bool loadFont(jsi::Runtime& rt, const jsi::Value& arg, sk_sp<SkData>& last,
+              sk_sp<SkTypeface>& tf) {
+  sk_sp<SkData> data;
+  if (arg.isObject() && arg.asObject(rt).isArrayBuffer(rt)) {
+    auto buf = arg.asObject(rt).getArrayBuffer(rt);
+    data = SkData::MakeWithCopy(buf.data(rt), buf.size(rt));
+  }
+  if (data ? data->equals(last.get()) : !last) return false;
+  last = data;
+  static const sk_sp<SkFontMgr> mgr = vroom::makePlatformFontMgr();
+  tf = data && mgr ? mgr->makeFromData(std::move(data)) : nullptr;
+  return true;
+}
 }  // namespace
 
 #if defined(__ANDROID__)
@@ -141,8 +161,8 @@ jsi::Value crosshairButtonHit(jsi::Runtime& rt,
 //
 // Preferred path: rasterize in *our* Skia and hand RN-Skia raw pixels via
 // Skia.Image.MakeImage — memory is one framebuffer, labels stay correct.
-// Fallback: still serialize, but with kDontIncludeData so the font file is
-// not copied; MakePicture re-resolves sans-serif on RN-Skia's side.
+// Fallback: still serialize, but with kDontIncludeData so the system font file
+// is not copied; MakePicture re-resolves sans-serif on RN-Skia's side.
 namespace {
 class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  public:
@@ -174,14 +194,18 @@ jsi::Object bytesLike(jsi::Runtime& rt, sk_sp<SkData> data) {
   return arg;
 }
 
-sk_sp<const SkData> serializeTypefaceNoEmbed(SkTypeface* tf, void*) {
+// setFont and setBadgeFont typefaces exist only as bytes, so they travel with
+// the picture.
+sk_sp<const SkData> serializeTypeface(SkTypeface* tf, void*) {
   if (!tf) return nullptr;
-  return tf->serialize(SkTypeface::SerializeBehavior::kDontIncludeData);
+  return tf->serialize(tf == vroom::axis_typeface().get()
+                           ? SkTypeface::SerializeBehavior::kDontIncludeData
+                           : SkTypeface::SerializeBehavior::kDoIncludeData);
 }
 
 jsi::Value wrapSerializedPicture(jsi::Runtime& rt, const sk_sp<SkPicture>& pic) {
   SkSerialProcs procs;
-  procs.fTypefaceProc = serializeTypefaceNoEmbed;
+  procs.fTypefaceProc = serializeTypeface;
   sk_sp<SkData> serialized = pic->serialize(&procs);
   if (!serialized) return jsi::Value::null();
 
@@ -400,6 +424,28 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int key = static_cast<int>(args[0].asNumber());
           vroom_chart_set_float(chart_, static_cast<VroomFloatKey>(key),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setFont" || name == "setBadgeFont") {
+    // setFont(data?) / setBadgeFont(data?) — a font file's bytes for the
+    // chart's text / its badges; none restores the fallback.
+    const bool badge = name == "setBadgeFont";
+    return lockedFunction(
+        rt,
+        propName,
+        1,
+        [this, badge](jsi::Runtime& rt2,
+                      const jsi::Value& /*thisVal*/,
+                      const jsi::Value* args,
+                      size_t count) -> jsi::Value {
+          if (count > 0 &&
+              loadFont(rt2, args[0], badge ? badge_font_data_ : font_data_,
+                       badge ? chart_->badge_typeface : chart_->typeface)) {
+            vroom::labels::recompute_axis_width(*chart_);
+            chart_->mark_dirty();
+          }
           return jsi::Value::undefined();
         });
   }

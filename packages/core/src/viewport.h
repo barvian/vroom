@@ -122,11 +122,10 @@ struct CandleSnapshot {
     // first frame matches the skeleton frame it replaced; without it every bar
     // would jump to full opacity the instant data landed.
     float skeleton_alpha = 1.f;
-    // How much of that grey is left in the slot's starting color: 1 for a fresh
-    // hand-off, less once a tick has interrupted it partway (see
-    // blend_candle_snapshots). The grey's own alpha can't stand in for this —
-    // it's a different color, so carrying progress in it turns the bar grey.
-    float skeleton_mix = 1.f;
+    // This slot's own progress, used in place of the shared morph clock when
+    // set (>= 0). The loading reveal resolves the line centre first, so each
+    // bar has to land on the schedule of the line at its x, not on one clock.
+    float t = -1.f;
 };
 
 // One vertex of the loading line's morph, holding both ends of the animation
@@ -194,12 +193,10 @@ inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
         // The skeleton state, by contrast, carries over from the interrupted
         // capture: a tick landing mid-hand-off must not abandon the grey blend
         // partway, or the bar would snap to full color while its geometry is
-        // still moving. What's left of the grey shrinks by the progress made,
-        // so the restart starts on the color that was on screen.
+        // still moving.
         if (from.skeleton) {
             to.skeleton = true;
             to.skeleton_alpha = from.skeleton_alpha;
-            to.skeleton_mix = from.skeleton_mix * (1.f - morph_t);
         }
     }
 }
@@ -270,7 +267,7 @@ struct TimeWindow {
 
 // Clamp a same-length time window after a pan or pinch-zoom shift.
 //
-// The future cap (`max_future`, typically 3/4 of the window) is unchanged: the
+// The future cap (`max_future`, one candle interval) is unchanged: the
 // right edge cannot run past last_time + max_future.
 //
 // The past cap depends on whether the window fits in the data:
@@ -430,6 +427,9 @@ double price_fraction(const PriceBounds& bounds, double price);
 // independently of the price bounds (see CandleSnapshot):
 //   price_to_y(l, b, p) == y_at_fraction(l, price_fraction(b, p))
 float y_at_fraction(const Layout& layout, double frac);
+
+// Inverse of y_at_fraction. Returns 0.5 for a degenerate draw band.
+double fraction_at_y(const Layout& layout, float y);
 
 // Inverse of price_to_y: map a pixel y in the price pane back to a price.
 // Returns bounds.min for a degenerate range or draw band.

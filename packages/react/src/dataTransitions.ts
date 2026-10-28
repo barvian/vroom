@@ -174,7 +174,7 @@ export function isPinnedToLatest(
  * The visible window to apply after a timeframe switch so each candle keeps
  * the exact pixel width it had before: the visible slot count is preserved and
  * the right edge re-anchors on the newest candle (any future-gap overshoot is
- * carried over in slots, clamped to the core's 3/4-window cap). The new start
+ * carried over in slots, clamped to 3/4 of the window). The new start
  * may precede the first candle — that gap is intentional, width wins.
  */
 export function timeframeWindow(

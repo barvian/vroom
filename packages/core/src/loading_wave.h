@@ -109,6 +109,36 @@ inline float resolve(float reveal, float x_frac) {
     return t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
 }
 
+// Where the reveal's line comes from at `x_frac` this frame, before it resolves
+// onto the data, as a fraction of the pane height: the live sine, moved toward
+// `close_frac` (also of the pane) by however far a host-driven stage 2 got. The
+// blend loading_line's reveal_points draws at each bar's vertex.
+inline float reveal_source_y_frac(float elapsed_s,
+                                  float frozen_s,
+                                  float x_frac,
+                                  float close_frac,
+                                  float stage2_t) {
+    const float x = x_frac < 0.f ? 0.f : (x_frac > 1.f ? 1.f : x_frac);
+    const float live = y_frac(elapsed_s, x);
+    const float frozen = y_frac(frozen_s, x);
+    const float stage2 =
+        frozen + (close_frac - frozen) * resolve(stage2_t, x_frac);
+    return live + (stage2 - live) * stage2_t;
+}
+
+// The point a revealing bar is collapsed to, so that lerping each of its prices
+// out of it by `p` (the line's progress at the bar, see resolve) grows the bar
+// symmetrically about the line: the line at the bar is `source + (close -
+// source) * p`, and the body's centre sits `p² * (body_mid - close)` off it, so
+// the line runs through the middle of a small bar and through its close as both
+// land. Works in any units affine to the pane's y.
+inline float reveal_bar_origin(float source,
+                               float close,
+                               float body_mid,
+                               float p) {
+    return source + p * (close - body_mid);
+}
+
 // The line's share of the frame. In line mode it *is* the series and stays;
 // over candles it gives way fast so it never reads as a line chart.
 inline float presence(float reveal, float line_mode) {

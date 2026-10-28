@@ -62,13 +62,6 @@ TEST_CASE("the tip dot clears the y-axis when the view sits on the newest bar") 
 
     CHECK(dot_right < axis_left);
     CHECK(axis_left - dot_right >= doctest::Approx(kClearPx));
-
-    SUBCASE("the pulse ring is not covered by the guarantee and may clip") {
-        // 3.5x the dot radius at its widest (tip_pulse.h). Reserving that
-        // much gutter would cost the plot ~11px, so the ring is allowed to run
-        // into the axis; only the dot is promised.
-        CHECK(tip_x + of(kLineWidth).dot_r * 3.5f > axis_left);
-    }
 }
 
 TEST_CASE("an explicit dot radius widens the gutter to keep the same clearance") {

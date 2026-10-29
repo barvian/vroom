@@ -13,6 +13,6 @@ from VroomChartCoreProps; `style` is the React Native flavor.
 
 ## Type Declaration
 
-| Name     | Type                       | Description                                                      | Source                                                                                                               |
-| -------- | -------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `style?` | `StyleProp`\<`ViewStyle`\> | Style for the chart's root view. Defaults to filling the parent. | [react-native/src/types.ts:53](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L53) |
+| Name     | Type                       | Description                                                      | Source                       |
+| -------- | -------------------------- | ---------------------------------------------------------------- | ---------------------------- |
+| `style?` | `StyleProp`\<`ViewStyle`\> | Style for the chart's root view. Defaults to filling the parent. | react-native/src/types.ts:53 |
